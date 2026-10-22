@@ -19,7 +19,7 @@
 
 | 常量 | 值 | 说明 |
 | --- | --- | --- |
-| `IDENTITY_DOC_NAME` | `"Demo.json"` | 缺省布局文档文件名。运行期按 exe 同目录解释; 加载链 = 同名 `.bin` 优先, 其次该文件本身。构建期由 CMake 生成 `Demo.bin` 并投放到产物目录。 |
+| `IDENTITY_DOC_NAME` | `"Kanat.json"` | 缺省布局文档文件名。运行期按 exe 同目录解释; 加载链 = 同名 `.bin` 优先, 其次该文件本身。构建期由 CMake 生成 `Kanat.bin` 并投放到产物目录。 |
 | `IDENTITY_DOC_ENV` | `"DEMO_DOC"` | 覆盖布局文档文件名的环境变量名。未设置或取值过长 ⇒ 回退 `IDENTITY_DOC_NAME`。 |
 
 **运行期开关**
@@ -32,8 +32,8 @@
 
 | 常量 | 值 | 说明 |
 | --- | --- | --- |
-| `IDENTITY_APP_NAME` | `"Demo"` | 应用名。窗口类名 = `<APPNAME>_IMGUI_CLASS`, 窗口标题默认 = 应用名(由 `ImGuiHost::Start` 派生)。窗口类名须在进程外也保持唯一(同名窗口类会与同机其它程序冲突), 派生新项目务必改。 |
-| `IDENTITY_ERR_TITLE` | `L"GenUI Demo 错误"` | 启动期错误弹窗标题。 |
+| `IDENTITY_APP_NAME` | `"Kanat"` | 应用名。窗口类名 = `<APPNAME>_IMGUI_CLASS`, 窗口标题默认 = 应用名(由 `ImGuiHost::Start` 派生)。窗口类名须在进程外也保持唯一(同名窗口类会与同机其它程序冲突), 派生新项目务必改。 |
+| `IDENTITY_ERR_TITLE` | `L"暗渠框架 Kanat 错误"` | 启动期错误弹窗标题。 |
 
 **日志身份**
 

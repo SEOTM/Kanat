@@ -1,4 +1,4 @@
-# Demo · 纲领登记
+# Kanat(暗渠框架) · 纲领登记
 
 > 本文件登记用户对本项目下达的纲领, 逐条追加, 不改写历史条目。
 > 纲领原话照录(含标点); 解读另列并注明是否经用户确认。
@@ -473,4 +473,31 @@
 落地: S1 提交 `a3486ec`; S2 为文档同步(README / DERIVE / EXAMPLES / CHARTER / 接口文档)并新增 HISTORY 留档。
 评估依据见 `docs\EVAL-DX11-RELOCATION.md`; 例外登记见 `docs\EXAMPLES.md` §2 第七例。本纲领不修改纲领五的
 历史原话("复用 `common\D3D11Manager`" 属当轮记载)。
+
+## 纲领十二(2026-10-22)
+
+原话:
+
+> Demo 项目正式改名Kanat，并定为框架名称（暗渠框架）
+
+澄清(用户答复原话):
+
+> 框架名改为暗渠，但是Kanat 项目仍然是这个框架的最小 Demo，Demo 涉及部分不改
+
+解读(经用户 2026-10-22 确认, 选项 = 框架内核 + 示例两层):
+
+1. **框架名 = 暗渠(Kanat)**: 本工程即暗渠框架; 工程名 / 可执行文件名 / 布局文档名 / 应用名与窗口标题以 Kanat 命名。
+2. **项目定位不变**: Kanat 项目仍是该框架的最小 Demo —— README 按"框架内核 + 最小 Demo 示例"两层陈述:
+   内核 = `src\framework` + `src\common`, 示例 = `src\demo` + `main.cpp` + 布局文档。
+3. **Demo 语义保留(用户口径)**: 事件表 `DemoEvents`、`src\demo\` 目录、`DEMO_*` 环境变量与事件名、
+   `[DEMO]` 日志前缀、布局名 `DemoMain` 一律不改。
+4. **历史条目不重写**: 本文件此前的纲领原话与落点记录保持原样; 自本条目起, 现行描述一律用 Kanat。
+
+落地(2026-10-22): 目录 `Demo` → `Kanat`; 布局文档 `Demo.json` → `Kanat.json`; `CMakeLists.txt` 的工程名 /
+文档名 / bin 名(`Kanat` / `Kanat.json` / `Kanat.bin`); `Identity.h` 的应用名 `Kanat` 与错误标题
+"暗渠框架 Kanat 错误"; `README.md` 按两层结构重写; `DERIVE` / `EXAMPLES` / `INTERFACE-DOC-STYLE` 的标题与
+现行描述; 界面文案改"暗渠框架 Demo"。
+
+自证: 构建 0 警告 0 错误; 无人值守运行(1500 ms 自动退出)退出码 0, 场景载入 `Kanat.bin`, 布局 `DemoMain` /
+15 控件 / 事件绑定 2 条 / 委托已解析 1 枚, 日志前缀仍 `[DEMO]`。
 

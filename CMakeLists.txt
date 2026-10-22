@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.28)
 
 # ================================
-# 工程: Demo
-# 描述: GenUI 框架的纯净演示 Demo —— 只使用 GenUI 的 framework 层(基础设计量 / 布局模型 /
-#       控件库 / 渲染 / 事件机制 / 读方向解析 / 几何解算 / ImGui 宿主 / D3D11 后端)与 common 层(内存管理 /
-#       会话分配器 / 环境件 / 文件校验 / 资源与路径)。
+# 工程: Kanat(暗渠框架) —— 框架内核 + 最小 Demo 示例
+# 描述: 暗渠框架(Kanat)的内核与最小 Demo 示例 —— framework 层(基础设计量 / 布局模型 /
+#       控件库 / 渲染 / 事件机制 / 读方向解析 / 几何解算 / ImGui 宿主 / D3D11 后端; 源自 GenUI 快照并就地演进)
+#       与 common 层(内存管理 / 会话分配器 / 环境件 / 文件校验 / 资源与路径)。
 #
 # 层级裁剪(相对 GenUI\src, app / doc / editor / tests 四层整体不引入):
 #   1. 无编辑器能力  : 不载入编辑器外壳布局, 无布局增删 / 改类型 / 写盘, 无文件对话框与提示布局
 #                      (源 = GenUI 的 editor 层, 整体不引入; 故不链接 comdlg32);
 #   2. 无文档承载者  : 单布局场景, 不设条目表 / 中间态 / 脏标记(源 = GenUI 的 doc 层与 app\AppHost);
-#   3. 无内嵌文档链  : 布局文档只从 exe 同目录的 Demo.json 读取 —— GenUI 侧的 bin 生成
+#   3. 无内嵌文档链  : 布局文档只从 exe 同目录的 Kanat.json 读取 —— GenUI 侧的 bin 生成
 #                      (tools\json2bin.py)与 .rc 资源内嵌链在本工程整体裁掉(不启用 RC 语言);
 #   4. 无探针        : 源 = GenUI 的 tests 层, 整体不引入。
 #
@@ -64,17 +64,17 @@ cmake_minimum_required(VERSION 3.28)
 # 依赖: imgui(含 win32 / dx11 后端)与 rapidjson 由本地 NuGet 包 GenUI.Deps.Native 提供
 #       (离线本地 feed = 本工程 nuget\ 目录)。
 #
-# 构建(经工作区 IPCHost 通道; 每次重新 configure 后必须重跑 inject):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File Demo\tools\build.ps1 -Step cfg
-#   powershell -NoProfile -ExecutionPolicy Bypass -File Demo\tools\build.ps1 -Step inject
-#   powershell -NoProfile -ExecutionPolicy Bypass -File Demo\tools\build.ps1 -Step restore
-#   powershell -NoProfile -ExecutionPolicy Bypass -File Demo\tools\build.ps1 -Step release
+# 构建(经工作区 IPCHost 通道; 每次重新 configure 后必须重跑 NuGet 依赖注入):
+#   cmake -S Kanat -B Kanat\out -G "Visual Studio 18 2026" -A x64
+#   注入 PackageReference(片段见 README「构建」一节) → msbuild Kanat\out\Kanat.slnx -t:Restore
+#   → msbuild Kanat\out\Kanat.slnx -p:Configuration=Release -p:Platform=x64 -m
+# 注: 旧的四步封装脚本 tools\build.ps1 已不在本仓库, 现行步骤以 README 为准。
 # ================================
 # ================================
 # 项目身份(派生新项目时改本节两行 + src\Identity.h)
 # ================================
-set(APP_PROJECT_NAME "Demo")	# 工程名 / 目标名 / 解决方案名
-set(APP_DOC_NAME "Demo.json")	# 布局文档文件名(构建期复制到 exe 同目录)
+set(APP_PROJECT_NAME "Kanat")	# 工程名 / 目标名 / 解决方案名
+set(APP_DOC_NAME "Kanat.json")	# 布局文档文件名(构建期复制到 exe 同目录)
 
 project(${APP_PROJECT_NAME} LANGUAGES CXX)
 
@@ -105,14 +105,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 注: Layout 前缀的 13 件(Layout / LayoutBuilder / LayoutModel / LayoutRender / LayoutSolver,
 #     各含配套 .md 接口文档)收进 framework\layout 子目录 —— 源码内引用随之带上 layout 前缀。
 # ================================
-set(DEMO_BASE_SRC
+set(KANAT_BASE_SRC
 	src/framework/base/BasicDesign.cpp
 	src/framework/base/ControlSpec.cpp
 	src/framework/base/CtrlBuffer.cpp
 	src/framework/base/TextWidth.cpp
 )
 
-set(DEMO_RENDER_SRC
+set(KANAT_RENDER_SRC
 	src/framework/render/imgui/D3D11Manager.cpp
 	src/framework/render/imgui/ImGuiHost.cpp
 	src/framework/render/imgui/ability/ImGuiRender.cpp
@@ -120,7 +120,7 @@ set(DEMO_RENDER_SRC
 	src/framework/render/imgui/control/Widgets.cpp
 )
 
-set(DEMO_LAYOUT_SRC
+set(KANAT_LAYOUT_SRC
 	src/framework/layout/GeometrySolver.cpp
 	src/framework/layout/Layout.cpp
 	src/framework/layout/LayoutBuilder.cpp
@@ -129,14 +129,14 @@ set(DEMO_LAYOUT_SRC
 	src/framework/layout/LayoutSolver.cpp
 )
 
-set(DEMO_DISPATCH_SRC
+set(KANAT_DISPATCH_SRC
 	src/framework/dispatch/Dispatch.cpp
 	src/framework/dispatch/DispatchScene.cpp
 	src/framework/dispatch/FrameEvent.cpp
 	src/framework/dispatch/UIEventHandler.cpp
 )
 
-set(DEMO_COMMON_SRC
+set(KANAT_COMMON_SRC
 	src/common/AllocatorHub.cpp
 	src/common/AppEnv.cpp
 	src/common/FileCodec.cpp
@@ -144,19 +144,19 @@ set(DEMO_COMMON_SRC
 	src/common/ResourceLoader.cpp
 )
 
-set(DEMO_DEMO_SRC
+set(KANAT_DEMO_SRC
 	src/demo/DemoEvents.cpp
 )
 
 add_executable(${APP_PROJECT_NAME}
 	src/main.cpp
 	src/Identity.h
-	${DEMO_BASE_SRC}
-	${DEMO_RENDER_SRC}
-	${DEMO_LAYOUT_SRC}
-	${DEMO_DISPATCH_SRC}
-	${DEMO_DEMO_SRC}
-	${DEMO_COMMON_SRC}
+	${KANAT_BASE_SRC}
+	${KANAT_RENDER_SRC}
+	${KANAT_LAYOUT_SRC}
+	${KANAT_DISPATCH_SRC}
+	${KANAT_DEMO_SRC}
+	${KANAT_COMMON_SRC}
 )
 
 # 唯一包含根 = src\(源码内一律以"子目录/文件"形式引用, 与 GenUI 的引用口径一致)
@@ -169,30 +169,30 @@ target_link_libraries(${APP_PROJECT_NAME} PRIVATE d3d11 dxgi dwmapi imm32)
 # 平台宏: x64 架构 + Unicode(与 windows.h 窄宽 API 语义一致)
 target_compile_definitions(${APP_PROJECT_NAME} PRIVATE _AMD64_ UNICODE _UNICODE)
 
-# 布局文档: 构建期生成 bin(格式与脚本同 GenUI), 投放到 exe 同目录(加载链第 1 级 .\Demo.bin)。
+# 布局文档: 构建期生成 bin(格式与脚本同 GenUI), 投放到 exe 同目录(加载链第 1 级 .\Kanat.bin)。
 # 找不到 Python ⇒ 只复制工程源 JSON(加载链第 2 级; 警告, 不阻断构建)。
-set(DEMO_DOC_BIN "${CMAKE_CURRENT_BINARY_DIR}/Demo.bin")
-find_program(DEMO_PYTHON NAMES python python3)
-if(DEMO_PYTHON)
+set(KANAT_DOC_BIN "${CMAKE_CURRENT_BINARY_DIR}/Kanat.bin")
+find_program(KANAT_PYTHON NAMES python python3)
+if(KANAT_PYTHON)
 	add_custom_command(
-		OUTPUT "${DEMO_DOC_BIN}"
-		COMMAND "${DEMO_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/json2bin.py"
-			"${CMAKE_CURRENT_SOURCE_DIR}/${APP_DOC_NAME}" "${DEMO_DOC_BIN}"
+		OUTPUT "${KANAT_DOC_BIN}"
+		COMMAND "${KANAT_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/json2bin.py"
+			"${CMAKE_CURRENT_SOURCE_DIR}/${APP_DOC_NAME}" "${KANAT_DOC_BIN}"
 		DEPENDS
 			"${CMAKE_CURRENT_SOURCE_DIR}/${APP_DOC_NAME}"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tools/json2bin.py"
-		COMMENT "生成布局 bin 文档(Demo.bin)"
+		COMMENT "生成布局 bin 文档(Kanat.bin)"
 		VERBATIM
 	)
-	add_custom_target(${APP_PROJECT_NAME}DocBin DEPENDS "${DEMO_DOC_BIN}")
+	add_custom_target(${APP_PROJECT_NAME}DocBin DEPENDS "${KANAT_DOC_BIN}")
 	add_dependencies(${APP_PROJECT_NAME} ${APP_PROJECT_NAME}DocBin)
 	add_custom_command(TARGET ${APP_PROJECT_NAME} POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			"${DEMO_DOC_BIN}"
-			"$<TARGET_FILE_DIR:${APP_PROJECT_NAME}>/Demo.bin"
+			"${KANAT_DOC_BIN}"
+			"$<TARGET_FILE_DIR:${APP_PROJECT_NAME}>/Kanat.bin"
 	)
 else()
-	message(WARNING "未找到 Python ⇒ 不生成 Demo.bin, 改为复制工程源 JSON")
+	message(WARNING "未找到 Python ⇒ 不生成 Kanat.bin, 改为复制工程源 JSON")
 	add_custom_command(TARGET ${APP_PROJECT_NAME} POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			"${CMAKE_CURRENT_SOURCE_DIR}/${APP_DOC_NAME}"

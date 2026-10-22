@@ -36,7 +36,7 @@ constexpr size_t ENV_NAME_CAPACITY = 64;			// 环境变量名缓冲容量(含结
 // 函数: MakeBinName
 // 描述: 由文档名派生同名 bin 名(扩展名替换为 .bin; 无扩展名时追加)
 // 参数:
-//		IN	docName:	文档文件名(如 Demo.json)
+//		IN	docName:	文档文件名(如 Kanat.json)
 //		OUT	szBin:		输出缓冲
 //		IN	cbBin:		输出缓冲字节数(含结尾 NUL)
 // 返回:

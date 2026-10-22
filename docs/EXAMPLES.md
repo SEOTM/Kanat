@@ -1,4 +1,4 @@
-# Demo · 典范框架使用范例(草案)
+# Kanat(暗渠框架) · 典范框架使用范例(草案)
 
 > 状态: 草案 v0, 待用户确认。经确认后本文件成为本工程的范例纲领, 范例实物按本文件逐个落地。
 > 上位口径: 工作区根 `AGENTS.md`(环境优先 / IPCHost 纪律) · `CodingPre\Habits_CPP.md`(编码习惯) ·
@@ -9,7 +9,7 @@
 
 ## 1. 本项目做什么
 
-本工程只使用 GenUI 的 `framework`(24 件复制快照 + 本工程首产/新增的框架层件, 清单见 `README.md` §1)与
+本工程只使用暗渠框架内核的 `framework`(24 件复制快照 + 本工程首产/新增的框架层件, 清单见 `README.md`「两层结构」)与
 `common`(14 件逐字节复制快照), 外加自持的 `src\demo` 事件层(事件表); `app` / `doc` / `editor` / `tests`
 四层整体不引入。首产件 = `framework\render\imgui\ImGuiHost.{h,cpp,md}`(2026-10-15 第 4 轮, 见 §3 的 EX-10),
 协调层 = `framework\dispatch\Dispatch`(对应 GenUI 的 `app\Application`, 见 §2 第六例与 `docs\CHARTER.md` 纲领十)。
@@ -22,7 +22,7 @@
    应用侧代码**才能成立之处, 即框架的缺陷或非通用语义的实证 —— 逐条记入反向治理清单, 回灌 GenUI
    (路径与纪律见第 5 节)。
 
-**为什么 Demo 能担当此任**: GenUI 侧 `HANDOFF.md` §7-30 的可迁移性判据问法是
+**为什么本工程能担当此任**: GenUI 侧 `HANDOFF.md` §7-30 的可迁移性判据问法是
 "把它搬到另一个项目, `framework` 还能原样复用吗?" —— 过去这是**设问**(靠人工想象回答);
 本工程是那个"另一个项目"的**真实实例**, 于是判据从设问变成可执行实验。
 
@@ -79,7 +79,7 @@
 快照件 `Render.h` / `layout\LayoutRender.cpp` / `GeometrySolver.{h,cpp}` / `BasicDesign.{h,cpp}` 亦按本轮口径调整;
 事件处理器 `DemoEvents` 把坐标记进 WND 件的 `position`(未绑定事件的窗口因此不可拖动)。
 依据 = `docs\CHARTER.md` 纲领六(含口径修正); 登记处: `README.md` §1 / §5 / §6、`docs\DERIVE.md` §5、
-`docs\HISTORY\2026-10-16-101915.md`。回滚基线 = `Demo\out\Release\demo_old.exe`。
+`docs\HISTORY\2026-10-16-101915.md`。回滚基线 = `Kanat\out\Release\demo_old.exe`。
 
 第六例例外(2026-10-21 第 33 轮, 用户指令): **Render 按技术名分目录 + 接口注册制** ——
 ① 渲染契约与具体 UI 技术分家: 与 UI 库无关的契约留在 `src\framework\render\Render.h`, 具体技术的宿主与实现按技术名
@@ -134,7 +134,7 @@ EX-16 = 2026-10-18 第 30 轮新增; EX-17 = 2026-10-21 第 32 轮新增)。
 | EX-17 | main 胶水 + Dispatch 静态单例 | `main.cpp` 只做七步(取宿主表 `Register` → 组 `DispatchConfig` → `Dispatch::Init` → `ImGuiHost::SetFontSize(Dispatch::GetFontSize())` 登记建面字号 → `pHost->Start` → `pHost->Run` → 释放链) · `Dispatch` = 全静态单例(私有删除构造析构 + 会话分配器 arena 内的 `DispatchData` 成员块) · 事件绑定表经函数指针注入(调度层不反向依赖事件层) · 场景装配收在 `DispatchScene.cpp`(LoadScene / UnloadScene) · 每帧流程 = `Dispatch::Frame`, 退出判据 = `Dispatch::GetExitAddress()` · 投影配色与样式注入 / 无人值守参数 / 收尾自证同层 | 调度层模块(`framework\dispatch\Dispatch.{h,cpp,md}` + `framework\dispatch\DispatchScene.cpp`)+ 胶水入口(`src\main.cpp`) | 已落地(2026-10-21 第 32 轮; 结构调整 S3 归位并改名; 同日补建面字号登记) |
 
 **承载机制**(已实现): 范例以"布局文档 + 处理器"为单位, 由本工程 exe 按 `DEMO_DOC` 环境变量选择文档
-(缺省 `Demo.json`); 单一 exe 承载全部范例, 不为一范例建一个工程。
+(缺省 `Kanat.json`); 单一 exe 承载全部范例, 不为一范例建一个工程。
 
 每个范例的交付物固定四项: ①布局文档(声明式, 唯一真源); ②必要的事件处理器; ③与范例同目录的用法说明
 (讲"为什么这样写才是典范", 并逐条对应第 2 节判据); ④客观自证(构建日志 + 启动日志, 需要时加帧 dump 哈希)。
@@ -222,13 +222,13 @@ E = 待用户口径。行号对 framework / common 而言即 GenUI 侧同一文�
 
 | 编号 | 现象 | 实证 |
 | :--- | :--- | :--- |
-| RG-A1 | 编辑器选中标记的魔数 label 与其判据落在框架: `SEL_MARK_LABEL = "##SEL_MARK"` + `CtrlTypeIsSelectionMark`; `Layout.cpp` 另复制同一字面量以规避反向依赖(**已消解(Demo 侧, 2026-10-22)**: CtrlData 的标签与判据、Layout 的副本与两处跳过分支均已删除; 本工程无叠加件生产者, 层次推导不再有该特例。GenUI 侧仍待按"判据归 editor + 可注册谓词"处置) | framework\CtrlData.h(原):257-283 · framework\layout\Layout.cpp(原):279-282 · 唯一生产者 editor\SelectionOverlay.cpp:67 |
+| RG-A1 | 编辑器选中标记的魔数 label 与其判据落在框架: `SEL_MARK_LABEL = "##SEL_MARK"` + `CtrlTypeIsSelectionMark`; `Layout.cpp` 另复制同一字面量以规避反向依赖(**已消解(Kanat 侧, 2026-10-22)**: CtrlData 的标签与判据、Layout 的副本与两处跳过分支均已删除; 本工程无叠加件生产者, 层次推导不再有该特例。GenUI 侧仍待按"判据归 editor + 可注册谓词"处置) | framework\CtrlData.h(原):257-283 · framework\layout\Layout.cpp(原):279-282 · 唯一生产者 editor\SelectionOverlay.cpp:67 |
 | RG-A2 | 框架头文件声明了一个自己无法提供的符号: `FormatToUI` 声明在 `LayoutModel.h`, 定义在 `app\Application.cpp`(**已消解(S4)**: 声明与文档条目均已删除) | framework\layout\LayoutModel.h:375-383 · app\Application.cpp:896-904 · 文档自认 LayoutModel.md:214 |
 | RG-A3 | 框架回调契约直指编辑器命令: `pfnAddDocLayout` 的语义 / 注入者 / 降级口径全由编辑命令层定义 | framework\FuncPtr.h:81-91 |
 | RG-A4 | 框架承载会话面回调四件套: 预览基座 / 预览同步 / 文档修订号 / 条目几何重算 | framework\FuncPtr.h:55-79 |
 | RG-A5 | 框架内的编辑器专用渲染出口: `RenderPreviewBase` 把"编辑器点击记录器 + 选中态叠加件"合成进渲染入口 | framework\Render.h:44-72 · Render.cpp:272-292 · FuncPtr.h:45-53 · framework 外使用者仅 app\AppHost.cpp:503 |
 | RG-A6 | 框架承载编辑器模态提示契约: `HintSpec` / `pfnHintSync` 在 framework 内零使用 | framework\FuncPtr.h:22-43 · 使用者全在 editor / app / tests |
-| RG-A7 | 框架释放路径被编辑器行为塑形: 下拉控件选项数组"可能已被编辑器改指静态表"; 结构体字段注释写死三个编辑器 ImGui ID 与两个编辑器函数名(**已消解(Demo 侧, 2026-10-22)**: 字段注释改为"数组由装配期分配、字符串不归本结构释放", 编辑器专名与三个 ImGui ID 已移除) | framework\Controls.h(原):245-248 · framework\CtrlData.h(原):100-103 |
+| RG-A7 | 框架释放路径被编辑器行为塑形: 下拉控件选项数组"可能已被编辑器改指静态表"; 结构体字段注释写死三个编辑器 ImGui ID 与两个编辑器函数名(**已消解(Kanat 侧, 2026-10-22)**: 字段注释改为"数组由装配期分配、字符串不归本结构释放", 编辑器专名与三个 ImGui ID 已移除) | framework\Controls.h(原):245-248 · framework\CtrlData.h(原):100-103 |
 | RG-A8 | common 层公开接口的取值真源落在应用层头文件: `LoadResource` 的 `dwResId` 指向 `src\app\resource.h` | common\ResourceLoader.h:36-37 |
 | RG-A9 | common 层硬编码应用层日志标签 `[MAIN]`, 纯消费方的运行日志里出现上游应用层身份 | common\AppEnv.cpp:62/80 · 实测痕迹 = 本工程运行日志第 5 行 `[MAIN] 圆角实现: DWM`(其余 8 行均为 `[DEMO]`) |
 
@@ -238,7 +238,7 @@ E = 待用户口径。行号对 framework / common 而言即 GenUI 侧同一文�
 | :--- | :--- | :--- |
 | RG-B1 | 验证探针接口落在框架公开面, 且计数在正常渲染路径无条件累加(每击一次字符串拷贝), 消费方永不读取 | framework\Render.h:89-110 · Render.cpp:36-42 / 72-73 / 145-150 · 使用者仅 tests\HostProbes.cpp:519/529 |
 | RG-B2 | 整件 `FrameEvent`(帧间事件队列)只为编辑器"帧内挂载、帧末执行"的时机需求存在, 消费方零调用却必须编译 | framework\FrameEvent.h:7-14 / 53-59 · 调用方 = app\AppHost.cpp:529 · app\PreviewSession.cpp:290-292 · editor\GenEditor.cpp 12 处 |
-| RG-B3 | 消费方零调用但随快照进入产物的公开面: `RenderPreviewBase` / `RenderFlex` / `CheckWindowResize` / `GetClickProbeStats` / `GetCompoundClickStats` / `CtrlTypeIsSelectionMark` / `SEL_MARK_LABEL`(后两者已删除(Demo 侧, 2026-10-22)) / `LayoutBuilder::CopyLayout` | 本工程对上述符号 grep, 命中只落在 `src\framework\*` 自身 |
+| RG-B3 | 消费方零调用但随快照进入产物的公开面: `RenderPreviewBase` / `RenderFlex` / `CheckWindowResize` / `GetClickProbeStats` / `GetCompoundClickStats` / `CtrlTypeIsSelectionMark` / `SEL_MARK_LABEL`(后两者已删除(Kanat 侧, 2026-10-22)) / `LayoutBuilder::CopyLayout` | 本工程对上述符号 grep, 命中只落在 `src\framework\*` 自身 |
 
 ### C 级: 叙述与文档面
 
@@ -268,7 +268,7 @@ E = 待用户口径。行号对 framework / common 而言即 GenUI 侧同一文�
 
 | 编号 | 现象 | 实证 |
 | :--- | :--- | :--- |
-| RG-E1 | 中文 UI 默认文案写死在框架控件缓冲初始化里(按钮默认"浏览"、组合动作默认"动作")(**已收束(Demo 侧, 2026-10-22)**: 三枚缺省文案集中为 `CTRL_DEFAULT_ACTION_BTN` / `CTRL_DEFAULT_BROWSE_BTN` / `CTRL_DEFAULT_COMBO_ITEM`, 四处字面量改为引用常量; "缺省值是否可由应用完全覆盖"仍待 GenUI 侧口径) | framework\base\CtrlBuffer.h 的"控件缺省文案"区 · 引用点 Controls.cpp / Widgets.cpp / CtrlBuffer.cpp |
+| RG-E1 | 中文 UI 默认文案写死在框架控件缓冲初始化里(按钮默认"浏览"、组合动作默认"动作")(**已收束(Kanat 侧, 2026-10-22)**: 三枚缺省文案集中为 `CTRL_DEFAULT_ACTION_BTN` / `CTRL_DEFAULT_BROWSE_BTN` / `CTRL_DEFAULT_COMBO_ITEM`, 四处字面量改为引用常量; "缺省值是否可由应用完全覆盖"仍待 GenUI 侧口径) | framework\base\CtrlBuffer.h 的"控件缺省文案"区 · 引用点 Controls.cpp / Widgets.cpp / CtrlBuffer.cpp |
 | RG-E2 | 框架视觉 / 交互调参源自外部参考项目 VideoCut(时间轴滑块形态) | Widgets.cpp:940/977(单手柄滑块与几何比例常量) · Widgets.cpp:58 · Controls.cpp:1110 |
 | RG-E3 | 进程级可写静态串作共享返回文案(`ERRBUFFER`) | Controls.cpp:79(被 423/458/986/1018/1057 复用) |
 | RG-E4 | 消费方是否应裁剪快照中零调用的框架模块(如 `FrameEvent`) | 见 RG-B2 / RG-B3 |

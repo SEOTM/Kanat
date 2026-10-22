@@ -162,7 +162,7 @@ VOID OnEntrustProbe(VOID* obj, uint64_t oper, uint64_t param, void* data);
 
 ### 注解
 
-**演示链路**:`Demo.json` 的容器(`##CONTAINER`)绑定 `DEMO_ENTRUST_PROBE`;委托按钮
+**演示链路**:`Kanat.json` 的容器(`##CONTAINER`)绑定 `DEMO_ENTRUST_PROBE`;委托按钮
 (`##DEMO_ENTRUST`,按钮类型)声明 `parent` = 容器的 `id` 且 `event` = `CTRL_EVENT_ENTRUST_PARENT`。
 装配期 `LayoutBuilder::ResolveEntrustedEvents` 把容器的处理函数写给该按钮 ⇒ 点击该按钮时到达本处理器,
 打印 `控件 id=14 label=##DEMO_ENTRUST`。
