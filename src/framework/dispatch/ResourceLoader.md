@@ -5,7 +5,7 @@
 资源与路径加载原语:缓存 exe 所在目录、按 exe 目录拼接文件路径、判断文件是否存在。目录与路径字符串
 一律落在会话分配器(`AllocatorHub`)的线性分配器里, 本模块不额外持有堆内存。
 
-本模块属 **framework 层 · dispatch**(2026-10-23 自 common 归位), 依赖 `AllocatorHub` 与 Win32;
+本模块属 **framework 层 · dispatch**, 依赖 `AllocatorHub` 与 Win32;
 不解析文件内容, 不做文档格式分派。
 
 本模块包含以下编程接口:

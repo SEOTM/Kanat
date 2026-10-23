@@ -1,85 +1,43 @@
-// ================================
-// 文件: Dispatch.h
-// 描述: 调度层(纯静态单例) —— 事件绑定注入 / 会话分配器与场景装配 / 布局来源五种入口 / 布局槽状态 /
-//   投影配色与宿主样式登记 / 每帧处理流程 / 无人值守参数 / 退出判据 / 清理链。
-// 说明: 形态 = 全静态成员 + 私有删除构造析构 + DispatchData 成员块; 成员块由会话分配器 arena
-//   placement new 分配、Release 时显式析构; 场景装配的分配与释放收在同模块的实现切片
-//   framework\dispatch\DispatchScene.cpp(LoadScene / UnloadScene 与布局槽辅助, 不对外暴露场景类)。
-//   布局层对本层开放: 初始化可按 LayoutSource 的四种实体来源(缺省加载链 / 内存缓冲 / 布局模型 /
-//   布局对象数组)装配, 也可声明为延迟装配(LAYOUT_SOURCE_DEFERRED) —— 此时只建立会话基础设施,
-//   布局由业务代码在 Init 之后经 AttachLayouts / AddLayout 逐枚提交(含运行期替换)。
-//   本层不持有窗口句柄、不认识任何具体 UI 库: 建窗 / 帧流程 / 消息循环归宿主, 本层只经
-//   framework\render\Render.h 的 HostApi 访问宿主, 并把 pfnFrame 与退出判据地址交回宿主;
-//   事件绑定表经函数指针注入(不直接依赖演示层的事件表); 项目身份(文档名 / 环境变量名 / 日志前缀)
-//   一律取自 DispatchConfig ⇒ 本层不 include 项目身份头, 也不 include 具体 UI 库或宿主实现的头。
-// ================================
-
 #pragma once
-#include <windows.h>		// MAX_PATH / ULONGLONG(成员块字段)
-#include <stddef.h>			// size_t(绑定表条目数)
+#include <windows.h>
+#include <stddef.h>
 
-#include "framework/base/BasicDesign.h"		// AutoSize / ProjCR
-#include "framework/dispatch/UIEventHandler.h"		// EventBinding(事件绑定表条目)
-#include "framework/layout/Layout.h"		// Layout(渲染源)
-#include "framework/layout/LayoutModel.h"	// FileMidState / RefSize(布局模型与文档 autosize 直映)
-#include "framework/render/Render.h"		// HostApi / StyleDesc / WndShowState(宿主接口契约)
+#include "framework/base/BasicDesign.h"
+#include "framework/dispatch/UIEventHandler.h"
+#include "framework/layout/Layout.h"
+#include "framework/layout/LayoutModel.h"
+#include "framework/render/Render.h"
 
 class LayoutSolver;
 
-// ================================
-// 结构: DispatchConfig
-// 描述: 调度层配置 —— 项目身份与运行开关(由进程入口按本工程常量填好; 框架层不含任何项目身份)
-// 说明: ① 字符串在 Init 期复制进成员块 ⇒ 调用方无需保持其生命周期(传 NULL 按空串处理);
-//       ② 日志前缀缺省为空串; 宿主按自身形态填写(例如项目缩写) ⇒ 输出形如 "[PREFIX] ";
-//       ③ bDarkFollowSystem = TRUE 时每帧跟随系统亮暗; FALSE 时用 SetDarkMode 登记的值。
-// ================================
 struct DispatchConfig
 {
-	LPCSTR szDocName;			// 缺省布局文档名(如 "App.json"; exe 同目录)
-	LPCSTR szDocEnv;			// 覆盖文档名的环境变量名(如 "APP_DOC")
-	LPCSTR szAutoCloseEnv;		// 自动退出毫秒数的环境变量名(如 "APP_AUTOCLOSE_MS")
-	LPCSTR szLogPrefix;			// 日志前缀(如 "APP"; 打印为 "[APP] ")
-	DWORD dwWndCount;			// 标准窗口数(本工程 = 1)
-	BOOL bDarkFollowSystem;		// TRUE = 每帧跟随系统; FALSE = 用 SetDarkMode 的值
+	LPCSTR szDocName;
+	LPCSTR szDocEnv;
+	LPCSTR szAutoCloseEnv;
+	LPCSTR szLogPrefix;
+	DWORD dwWndCount;
+	BOOL bDarkFollowSystem;
 };
 
-// ================================
-// 枚举: LayoutSourceKind
-// 描述: 布局来源种类 —— 初始化调度层时布局从何处来
-// 说明: ① 缺省 = 文档加载链(同名 bin 优先, 其次文档名; 形态由内容嗅探判定);
-//       ② 内存缓冲 = 调用方给出的 JSON / bin 字节; 解析失败回退缺省加载链(不视为初始化失败);
-//       ③ 布局模型 = 调用方持有的中间态(FileMidState, 见 LayoutModel.h); 直接展开, 不再解析文档;
-//       ④ 布局对象数组 = 调用方已展开并解算好的 Layout 对象; 直接使用, 本层不做解析与几何解算;
-//       ⑤ 延迟装配 = 初始化不提交真实布局; 业务代码在 Init 之后经 AttachLayouts / AddLayout 逐枚提交。
-// ================================
 enum LayoutSourceKind
 {
-	LAYOUT_SOURCE_DEFAULT = 0,		// 缺省加载链(文档文件)
-	LAYOUT_SOURCE_MEMORY,			// 内存缓冲(JSON / bin)
-	LAYOUT_SOURCE_MODEL,			// 布局模型(中间态)
-	LAYOUT_SOURCE_LAYOUTS,			// 布局对象数组 + 参考尺寸数组
-	LAYOUT_SOURCE_DEFERRED			// 延迟装配(运行期由业务代码提交)
+	LAYOUT_SOURCE_DEFAULT = 0,
+	LAYOUT_SOURCE_MEMORY,
+	LAYOUT_SOURCE_MODEL,
+	LAYOUT_SOURCE_LAYOUTS,
+	LAYOUT_SOURCE_DEFERRED
 };
 
-// ================================
-// 结构: LayoutSource
-// 描述: 布局来源描述 —— Init 的第四段入参; 一律经工厂函数构造(判别位与载荷由工厂成对写入)
-// 说明: ① 载荷只在 Init 期被取用一次: 内存缓冲只读不改写(JSON 形态内部会补结尾符副本),
-//          布局模型与布局对象数组按借用处理(所有权归调用方, 本层不释放);
-//       ② 布局对象数组的元素须已就绪(结构件齐备、像素几何已解算、层次已推导) —— 本层直接使用,
-//          不再解析文档也不重算几何;
-//       ③ 数组长度合法域 = 1..DISPATCH_SLOT_MAX; 初始化时仅首枚可见(其余由业务代码经
-//          SetLayoutVisible 打开), 与"默认渲染首枚"的口径一致。
-// ================================
 struct LayoutSource
 {
-	LayoutSourceKind kind;			// 来源种类(工厂函数写入)
-	LPCVOID pMemData;				// 内存缓冲首址(仅 MEMORY)
-	DWORD cbMemSize;				// 内存缓冲字节数(仅 MEMORY)
-	CONST FileMidState* pModel;		// 布局模型(仅 MODEL; 中间态整份)
-	Layout* CONST* ppLayouts;		// 布局对象数组(仅 LAYOUTS)
-	CONST AutoSize* pRefs;			// 参考尺寸数组(仅 LAYOUTS; 与布局数组同长)
-	DWORD dwLayoutCount;			// 数组长度(仅 LAYOUTS)
+	LayoutSourceKind kind;
+	LPCVOID pMemData;
+	DWORD cbMemSize;
+	CONST FileMidState* pModel;
+	Layout* CONST* ppLayouts;
+	CONST AutoSize* pRefs;
+	DWORD dwLayoutCount;
 
 	// 函数: CreateDefault
 	// 描述: 构造"缺省加载链"来源(不传任何内容时的形态)
@@ -133,59 +91,48 @@ struct LayoutSource
 	}
 };
 
-// ================================
-// 类名: Dispatch
-// 描述: 调度层(纯静态; 无实例 ⇒ 进程级单例语义)
-// ================================
 class Dispatch
 {
 private:
-	// 结构: LayoutSlot
-	// 描述: 布局槽 —— 一枚布局对象及其参考尺寸与渲染状态(槽数组由会话分配器持有)
 	struct LayoutSlot
 	{
-		Layout* pLayout;		// 布局对象(渲染源; NULL = 空槽)			| 8 字节
-		AutoSize ref;			// 参考尺寸(该布局的几何解算与绘制基准)
-		BOOL bVisible;			// 是否参与渲染							| 4 字节
-		BOOL bNested;			// 是否按嵌套(内嵌)渲染 —— 即 Flex 渲染, 沿用前一枚基座布局的窗口段	| 4 字节
-		BOOL bOwned;			// 布局对象是否归调度层(TRUE = 释放时析构)	| 4 字节
+		Layout* pLayout;
+		AutoSize ref;
+		BOOL bVisible;
+		BOOL bNested;
+		BOOL bOwned;
 	};
 
-	// 结构: DispatchData
-	// 描述: 调度成员块 —— 集中收纳调度状态, 由会话分配器 arena placement new 分配(见 DispatchScene.cpp)
 	struct DispatchData
 	{
-		LayoutSlot* pSlots;			// 布局槽数组(会话分配器持有)		| 8 字节
-		LayoutSolver* pSolver;		// 布局解析器(会话分配器持有)		| 8 字节
-		ProjCR* pProjCR;			// 投影配色(启动期建立)				| 8 字节
-		CONST HostApi* pHost;		// 宿主接口表(Init 注入; NULL = 未注入)	| 8 字节
-		DWORD dwSlotCount;			// 已用槽数(布局数量)				| 4 字节
-		DWORD dwSlotCapacity;		// 槽数组容量(按需扩容)				| 4 字节
-		RefSize refSize;			// 参考尺寸/经验参数(首枚布局的文档 autosize 直映)
-		LONG nWndX;					// 窗口桌面位置 X					| 4 字节
-		LONG nWndY;					// 窗口桌面位置 Y					| 4 字节
-		DWORD dwWndW;				// 窗口客户区宽(首枚布局)			| 4 字节
-		DWORD dwWndH;				// 窗口客户区高(首枚布局)			| 4 字节
-		DWORD dwWndCount;			// 标准窗口数(配置给出; 下限 1)		| 4 字节
-		BOOL bReady;				// 场景就绪标志(至少一枚布局已装配)	| 4 字节
-		BOOL bExit;					// 退出判据(宿主主循环每帧只读其地址)	| 4 字节
-		BOOL bDarkFollowSystem;		// 亮暗是否每帧跟随系统				| 4 字节
-		BOOL bDarkMode;				// 不跟随时生效的亮暗值				| 4 字节
-		DWORD dwFrameCount;			// 已执行帧数(渲染自证节流与收尾打印)	| 4 字节
-		DWORD dwAutoCloseMs;		// 无人值守自动退出毫秒数(0 = 不自动退出)	| 4 字节
-		ULONGLONG qwStartTick;		// 启动时刻(无人值守计时基准)		| 8 字节
-		DWORD dwLastShowState;		// 最近一帧首窗显示状态(收尾自证缓存; 枚举值)	| 4 字节
-		DWORD dwLastVisible;		// 最近一帧可见窗口数(收尾自证缓存)	| 4 字节
-		CHAR szDocName[MAX_PATH];	// 布局文档名(缺省名; 载入期可被环境变量覆盖)
-		CHAR szDocEnv[64];			// 覆盖文档名的环境变量名(空串 = 不覆盖)
-		CHAR szAutoCloseEnv[64];	// 自动退出毫秒数的环境变量名(空串 = 不读取)
+		LayoutSlot* pSlots;
+		LayoutSolver* pSolver;
+		ProjCR* pProjCR;
+		CONST HostApi* pHost;
+		DWORD dwSlotCount;
+		DWORD dwSlotCapacity;
+		RefSize refSize;
+		LONG nWndX;
+		LONG nWndY;
+		DWORD dwWndW;
+		DWORD dwWndH;
+		DWORD dwWndCount;
+		BOOL bReady;
+		BOOL bExit;
+		BOOL bDarkFollowSystem;
+		BOOL bDarkMode;
+		DWORD dwFrameCount;
+		DWORD dwAutoCloseMs;
+		ULONGLONG qwStartTick;
+		DWORD dwLastShowState;
+		DWORD dwLastVisible;
+		CHAR szDocName[MAX_PATH];
+		CHAR szDocEnv[64];
+		CHAR szAutoCloseEnv[64];
 	};
 
-	// 成员: data
-	// 描述: 调度成员块(会话分配器 arena 内; NULL = 未就绪)
 	static DispatchData* data;
 
-	// 私有化构造/析构(纯静态工具类)
 	Dispatch() = delete;
 	~Dispatch() = delete;
 	Dispatch(const Dispatch&) = delete;
@@ -256,12 +203,8 @@ private:
 	static VOID Log(LPCSTR lpszFormat, ...);
 
 public:
-	// 类型: BindingsFunc
-	// 描述: 事件绑定表取得函数(创建期注入; 绑定点在应用侧, 框架层不反向依赖)
 	using BindingsFunc = CONST UIEventHandler::EventBinding* (*)(size_t* pnCount);
 
-	// 常量: DISPATCH_SLOT_MAX
-	// 描述: 布局槽数量上限(单会话可装配的布局枚数; 超出即拒绝, 不静默截断)
 	static constexpr DWORD DISPATCH_SLOT_MAX = LAYOUT_MAX;
 
 	// 函数: Init

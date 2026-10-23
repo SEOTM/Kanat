@@ -3,38 +3,20 @@
 #include <Windows.h>
 #include <string.h>
 
-// ================================
-// 文件: LayoutModel.cpp
-// 描述: 布局数据模型(中间态)的字段工具与"块 + 链"操作实现(接口契约见同目录 LayoutModel.md)
-// ================================
+static Arena* s_memArena = NULL;
+static MemPool* s_memPool = NULL;
 
-// ========================
-// 静态成员变量初始化
-// ========================
-static Arena* s_memArena = NULL;	// 线性分配器(块超出池上限时的回落分配)
-static MemPool* s_memPool = NULL;	// 小对象池(元素块 / 布局块的常规来源)
-
-// ========================
-// 区域: 块结构(文件内部)
-// ========================
-
-// 结构: ElementBlock
 struct ElementBlock
 {
-	ElementNode node;	// 链节点(node.data 指向本块内的 spec)
-	ElementSpec spec;	// 元素规格
+	ElementNode node;
+	ElementSpec spec;
 };
 
-// 结构: LayoutBlock
 struct LayoutBlock
 {
-	LayoutNode node;	// 链节点(node.info 指向本块内的 info)
-	LayoutInfo info;	// 布局信息
+	LayoutNode node;
+	LayoutInfo info;
 };
-
-// ========================
-// 区域: 块分配与回收(文件内部)
-// ========================
 
 // 函数: AllocBlock
 // 描述: 从池分配块(超池上限或池分配失败时回落线性分配器)
@@ -73,7 +55,7 @@ static ElementBlock* MakeElementBlock()
 	}
 	ElementBlock* pBlock = (ElementBlock*)buf.buffer;
 	pBlock->spec = ElementSpec{};
-	pBlock->spec.parentID = -1;		// 无父容器(0 是合法 ID ⇒ 缺省不能取 0)
+	pBlock->spec.parentID = -1;
 	pBlock->node.data = &pBlock->spec;
 	pBlock->node.next = nullptr;
 	return pBlock;
@@ -103,10 +85,6 @@ VOID LayoutModel::SetAllocators(Arena* arena, MemPool* pool)
 	s_memArena = arena;
 	s_memPool = pool;
 }
-
-// ================================
-// 区域: 字段工具(与解算无关的纯字段访问)
-// ================================
 
 // 函数: RefSizeValueAt
 // 描述: 按参考量序号读经验参数值(序号越界返回 0)
@@ -146,19 +124,15 @@ RefSize LayoutModel::DefaultRefSize()
 {
 	RefSize ret{};
 	StrCopy(ret.mode, sizeof(ret.mode), "AUTO_SIZE_BY_SCREEN_HEIGHT");
-	ret.unit = 0;			// 0 = 千分比(比例推导像素)
-	ret.width = 622;		// 窗口宽度(千分比)
-	ret.height = 432;		// 窗口高度
-	ret.controlHeight = 25;	// 控件高度
-	ret.fontSize = 17;		// 字体大小
-	ret.space = 10;			// 控件间隙
-	ret.padding = 4;		// 内部边距
+	ret.unit = 0;
+	ret.width = 622;
+	ret.height = 432;
+	ret.controlHeight = 25;
+	ret.fontSize = 17;
+	ret.space = 10;
+	ret.padding = 4;
 	return ret;
 }
-
-// ================================
-// 区域: 定长字符串
-// ================================
 
 // 函数: StrCopy
 // 描述: 把字符串安全拷入定长数组(超长按容量截断)
@@ -176,7 +150,6 @@ BOOL LayoutModel::StrCopy(char* dst, size_t cap, LPCSTR src)
 	size_t len = strlen(src);
 	if (len >= cap)
 	{
-		// 超长: 拷满 cap - 1 字节并补齐结尾符(截断)
 		memcpy(dst, src, cap - 1);
 		dst[cap - 1] = '\0';
 		return FALSE;
@@ -185,20 +158,16 @@ BOOL LayoutModel::StrCopy(char* dst, size_t cap, LPCSTR src)
 	return TRUE;
 }
 
-// ================================
-// 区域: 池与链
-// ================================
-
 // 函数: StateInit
 // 描述: 初始化一份中间态(按布局数与各布局元素数逐块建立两条链)
 BOOL LayoutModel::StateInit(FileMidState& state, DWORD dwLayouts, CONST DWORD* ElementCounts)
 {
-	state = FileMidState{};		// 先清零(失败时保持空态)
+	state = FileMidState{};
 	for (DWORD i = 0; i < dwLayouts; i++)
 	{
 		if (LayoutAdd(state) == NULL)
 		{
-			StateClear(state);		// 回卷已建块
+			StateClear(state);
 			return FALSE;
 		}
 		CONST DWORD dwCount = (ElementCounts != NULL) ? ElementCounts[i] : 0;
@@ -206,7 +175,7 @@ BOOL LayoutModel::StateInit(FileMidState& state, DWORD dwLayouts, CONST DWORD* E
 		{
 			if (!ElementInsert(state, i, j))
 			{
-				StateClear(state);	// 回卷已建块
+				StateClear(state);
 				return FALSE;
 			}
 		}
@@ -221,7 +190,7 @@ VOID LayoutModel::StateClear(FileMidState& state)
 	LayoutNode* pLayout = state.layouts.next;
 	while (pLayout != NULL)
 	{
-		LayoutNode* pNextLayout = pLayout->next;		// 先记后继(回收后不可再读)
+		LayoutNode* pNextLayout = pLayout->next;
 		ElementNode* pElem = pLayout->elements;
 		while (pElem != NULL)
 		{
@@ -244,7 +213,6 @@ LayoutNode* LayoutModel::LayoutAdd(FileMidState& state)
 	{
 		return NULL;
 	}
-	// 尾插: 自哨兵头逐枚推进到链尾
 	LayoutNode* pTail = &state.layouts;
 	while (pTail->next != NULL)
 	{
@@ -260,7 +228,6 @@ LayoutNode* LayoutModel::LayoutAdd(FileMidState& state)
 BOOL LayoutModel::LayoutRemove(FileMidState& state, DWORD layoutIndex)
 {
 	BOOL bRet = FALSE;
-	// 1. 定位前驱与目标(越界 ⇒ 原状态不变)
 	LayoutNode* pPrev = &state.layouts;
 	for (DWORD i = 0; (i < layoutIndex) && (pPrev->next != NULL); i++)
 	{
@@ -271,9 +238,7 @@ BOOL LayoutModel::LayoutRemove(FileMidState& state, DWORD layoutIndex)
 	{
 		return bRet;
 	}
-	// 2. 解链
 	pPrev->next = pNode->next;
-	// 3. 回收本布局的元素块与布局块
 	CONST DWORD dwElems = (pNode->info != NULL) ? pNode->info->dwElements : 0;
 	ElementNode* pElem = pNode->elements;
 	while (pElem != NULL)
@@ -283,7 +248,6 @@ BOOL LayoutModel::LayoutRemove(FileMidState& state, DWORD layoutIndex)
 		pElem = pNext;
 	}
 	FreeBlock(BufferInfo{ pNode, sizeof(LayoutBlock) });
-	// 4. 更新计数
 	if (state.dwLayouts > 0)
 	{
 		state.dwLayouts--;
@@ -380,21 +344,18 @@ BOOL LayoutModel::ElementInsert(FileMidState& state, DWORD layoutIndex, DWORD el
 	}
 	if (elementIndex > pNode->info->dwElements)
 	{
-		return bRet;			// 插入位置越界(合法范围 0..元素数)
+		return bRet;
 	}
-	// 1. 先分配新块(失败 ⇒ 原状态不变)
 	ElementBlock* pBlock = MakeElementBlock();
 	if (pBlock == nullptr)
 	{
 		return bRet;
 	}
-	// 2. 定位插入点(ppLink 指向"待改写的链指针存储位置"; 位置 0 时即布局头的元素链头)
 	ElementNode** ppLink = &pNode->elements;
 	for (DWORD i = 0; (i < elementIndex) && (*ppLink != NULL); i++)
 	{
 		ppLink = &((*ppLink)->next);
 	}
-	// 3. 链接并更新计数
 	pBlock->node.next = *ppLink;
 	*ppLink = &pBlock->node;
 	pNode->info->dwElements++;
@@ -413,7 +374,6 @@ BOOL LayoutModel::ElementRemove(FileMidState& state, DWORD layoutIndex, DWORD el
 	{
 		return bRet;
 	}
-	// 1. 定位待移除节点的前驱链指针
 	ElementNode** ppLink = &pNode->elements;
 	for (DWORD i = 0; (i < elementIndex) && (*ppLink != NULL); i++)
 	{
@@ -424,14 +384,12 @@ BOOL LayoutModel::ElementRemove(FileMidState& state, DWORD layoutIndex, DWORD el
 	{
 		return bRet;
 	}
-	// 2. 解链并更新计数
 	*ppLink = pElem->next;
 	pNode->info->dwElements--;
 	if (state.dwElements > 0)
 	{
 		state.dwElements--;
 	}
-	// 3. 回收块(块地址即节点地址)
 	FreeBlock(BufferInfo{ pElem, sizeof(ElementBlock) });
 	bRet = TRUE;
 	return bRet;

@@ -1,17 +1,8 @@
 #pragma once
 #include <minwindef.h>
-#include <stdint.h>		// uint64_t(回调四元组的 oper/param)
-#include "framework/base/FuncPtr.h"	// pfnCtrlEvent(事件处理函数指针类型)
+#include <stdint.h>
+#include "framework/base/FuncPtr.h"
 
-// ================================
-// 类型: FrameEvent
-// 描述: 渲染帧间事件队列(纯静态); 承载"需要等渲染帧结束之后再执行"的事件
-// 说明: 事件回调分两类:
-//       ① 帧内触发(默认): 控件渲染过程中立即调用处理函数;
-//       ② 帧间触发(本模块): 处理函数在函数最前面用 IsInFrame() 判定 ——
-//          为真(渲染帧内触发)⇒ Post() 把自身挂到本队列并返回; 为假(帧末排空)⇒ 继续执行函数内业务。
-//       队列容量固定, 满时挂载失败并打印一条诊断。
-// ================================
 class FrameEvent
 {
 private:
@@ -21,19 +12,15 @@ private:
 	FrameEvent& operator=(const FrameEvent&) = delete;
 
 public:
-	// 结构: Entry
-	// 描述: 一枚帧间事件(字段按大小降序排布, 便于核对对齐)
-	// 备注: 成员与 pfnCtrlEvent 的四元组一一对应 ⇒ 排空时可按原调用形状回传
 	struct Entry
 	{
-		pfnCtrlEvent pfnEvent;	// 事件处理函数 | 8 Byte(x64)
-		VOID* pObj;				// 触发的控件对象(挂载时原值保存; 帧间执行时可能已失效)
-		void* pData;			// 附加数据指针(同上)
-		uint64_t qwOper;		// 操作码
-		uint64_t qwParam;		// 参数
+		pfnCtrlEvent pfnEvent;
+		VOID* pObj;
+		void* pData;
+		uint64_t qwOper;
+		uint64_t qwParam;
 	};
 
-	// 池容量 64(块大小 8+8+8+8+8 = 40 Byte; x64 下 64 × 40 = 2560 Byte)
 	static constexpr DWORD FRAME_EVENT_CAPACITY = 64;
 
 	// 函数: Post

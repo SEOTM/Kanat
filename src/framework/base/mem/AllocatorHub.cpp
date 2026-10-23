@@ -1,32 +1,16 @@
-// ================================
-// 文件: AllocatorHub.cpp
-// 描述: 会话分配器的持有与分配原语实现(口径、分层与建立/释放时机见 AllocatorHub.h 的文件头说明)
-// ================================
-
-// ================================
-// 区域: 文件包含区
-// ================================
 #include <string.h>
 #include "framework/base/mem/AllocatorHub.h"
 
-// ================================
-// 区域: 文件内静态状态
-// ================================
-// 线性分配器(会话级: 由 Init 建立、Release 释放)与小对象池(值对象: 默认构造即就绪)
-// 说明: 小对象池不随 Release 复位(只 delete 线性分配器; 池内 slab 随进程结束回收)
 static Arena* sArena = NULL;
 static MemPool sSmallPool;
 
-// ================================
-// 区域: 接口实现区
-// ================================
 // 函数: Init
 // 描述: 建立会话分配器(见 .h; 已建立时先 Release 再重建)
 BOOL AllocatorHub::Init(size_t cbArena)
 {
 	if (sArena != NULL)
 	{
-		Release();				// 幂等: 已建立 ⇒ 先释放再重建
+		Release();
 	}
 	sArena = new Arena(cbArena);
 	return (sArena != NULL) ? TRUE : FALSE;
@@ -75,7 +59,7 @@ BufferInfo AllocatorHub::AllocSmall(size_t size)
 	}
 	if (ret.buffer == nullptr)
 	{
-		ret = AllocBuffer(size);		// 超限 / 池分配失败 ⇒ 回落线性分配器
+		ret = AllocBuffer(size);
 	}
 	return ret;
 }

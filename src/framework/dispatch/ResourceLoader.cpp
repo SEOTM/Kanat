@@ -1,29 +1,15 @@
-// ================================
-// 文件: ResourceLoader.cpp
-// 描述: 资源与路径加载原语的实现(口径、分层与迁出动因见 ResourceLoader.h 的文件头说明)
-// ================================
-
-// ================================
-// 区域: 文件包含区
-// ================================
 #include "framework/dispatch/ResourceLoader.h"
 #include "framework/base/mem/AllocatorHub.h"
 
-// ================================
-// 区域: 文件内静态状态
-// ================================
-static LPCSTR sExeDir = NULL;		// exe 目录(池内串; 含末尾 '\'; 未初始化 ⇒ NULL)
+static LPCSTR sExeDir = NULL;
 
-// ================================
-// 区域: 接口实现区
-// ================================
 // 函数: Init
 // 描述: 缓存 exe 所在目录(幂等; 失败时目录保持空)
 VOID ResourceLoader::Init()
 {
 	if (sExeDir != NULL)
 	{
-		return;				// 幂等: 已缓存
+		return;
 	}
 	CHAR szExe[MAX_PATH]{};
 	DWORD dwLen = GetModuleFileNameA(NULL, szExe, MAX_PATH);

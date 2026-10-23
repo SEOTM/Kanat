@@ -1,65 +1,45 @@
-// ================================
-// 文件: ImGuiHost.h
-// 描述: Dear ImGui 宿主(纯静态) —— 管理本应用声明的 N 个"标准窗口"并独持整条渲染链
-//       (接口契约见同目录 ImGuiHost.md)
-// ================================
-
 #pragma once
 #include <d3d11.h>
 #include "imgui.h"
 
-#include "framework/render/imgui/D3D11Manager.h"		// 每窗口的 D3D11 设施(值成员, 需要完整类型)
-#include "framework/base/ControlSpec.h"		// vec2(反调面的几何参数)
-#include "framework/render/Render.h"		// HostApi / StyleDesc / WndShowState / pfnFrame / pfnSegment(宿主接口契约)
+#include "framework/render/imgui/D3D11Manager.h"
+#include "framework/base/ControlSpec.h"
+#include "framework/render/Render.h"
 
-// ================================
-// 类名: ImGuiHost
-// ================================
 class ImGuiHost
 {
 private:
-	// 私有化构造/析构(纯静态工具类)
 	ImGuiHost() = delete;
 	~ImGuiHost() = delete;
 	ImGuiHost(const ImGuiHost&) = delete;
 	ImGuiHost& operator=(const ImGuiHost&) = delete;
 
 public:
-	static constexpr DWORD MAX_WND = 8;		// 标准窗口数量上限(单元表容量)
+	static constexpr DWORD MAX_WND = 8;
 
-	// 结构: WndSpec
-	// 描述: 一个标准窗口的声明规格(高级用法: 由调用方逐项填写后交 CreateWnds)
-	// 说明: 推荐入口是 Start —— 它按默认几何(客户区 800x600、屏幕工作区居中、圆角 10)与已登记字号
-	//   (未登记时 18)构造本表, 并以"数量 + 应用名"为唯一输入; 只有需要逐窗口定制几何时才自行填表调 CreateWnds。
 	struct WndSpec
 	{
-		LPCWSTR lpszClassName;		// 窗口类名(所有窗口共用; 本模块只注册一次, 进程内须唯一)
-		LPCWSTR lpszTitle;			// 窗口标题(仅任务栏 / 枚举可见: 无系统标题栏)
-		INT     x;					// 桌面位置 x
-		INT     y;					// 桌面位置 y
-		DWORD   dwWidth;			// 客户区宽(像素)
-		DWORD   dwHeight;			// 客户区高(像素)
-		FLOAT   fFontSize;			// 本窗口字号(像素; < 8 时按 18 兜底)
-		DWORD   dwRounding;			// 本窗口圆角半径(像素; 0 = 不设圆角)
+		LPCWSTR lpszClassName;
+		LPCWSTR lpszTitle;
+		INT     x;
+		INT     y;
+		DWORD   dwWidth;
+		DWORD   dwHeight;
+		FLOAT   fFontSize;
+		DWORD   dwRounding;
 	};
 
-	// 类型: WndShowState
-	// 描述: 窗口显示状态的类型别名(枚举本体在 framework\render\Render.h, 供调度层与各宿主共用)
 	using WndShowState = ::WndShowState;
 
-	// 枚举值别名: 保留既有 ImGuiHost::WND_SHOW_* 写法(不破坏既有调用)
 	static constexpr WndShowState WND_SHOW_NEVER = ::WND_SHOW_NEVER;
 	static constexpr WndShowState WND_SHOW_VISIBLE = ::WND_SHOW_VISIBLE;
 	static constexpr WndShowState WND_SHOW_HIDDEN_BY_ACTIVE = ::WND_SHOW_HIDDEN_BY_ACTIVE;
 	static constexpr WndShowState WND_SHOW_HIDDEN_BY_HOST = ::WND_SHOW_HIDDEN_BY_HOST;
 
-	// 类型: StyleFunc
 	using StyleFunc = VOID (*)(ImGuiStyle& style, VOID* pUser);
 
-	// 类型: FrameFunc
 	using FrameFunc = pfnFrame;
 
-	// 类型: SegmentFunc
 	using SegmentFunc = pfnSegment;
 
 	// 函数: EnableDpiAwareness

@@ -10,7 +10,6 @@ bool D3D11Manager::Initialize(HWND hWnd)
 
 bool D3D11Manager::CreateDeviceD3DInternal(HWND hWnd)
 {
-    // 设置交换链
     DXGI_SWAP_CHAIN_DESC sd;
     ZeroMemory(&sd, sizeof(sd));
     sd.BufferCount = 2;
@@ -52,7 +51,6 @@ bool D3D11Manager::CreateDeviceD3DInternal(HWND hWnd)
 
     if (res == DXGI_ERROR_UNSUPPORTED)
     {
-        // 如果硬件不可用(DXGI_ERROR_UNSUPPORTED)，尝试高性能 WARP 软件驱动程序
         res = D3D11CreateDeviceAndSwapChain(
             nullptr,
             D3D_DRIVER_TYPE_WARP,

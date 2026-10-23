@@ -2,52 +2,34 @@
 #include "framework/base/mem/MemoryManager.h"
 #include "framework/base/ControlSpec.h"
 #include <stdint.h>
-// ================================
-// 备注: 额外说明
-// ================================
-// 在此应用中，不使用常见的 new 和 delete 来管理内存，而是由 MemoryManager 统一分配。
-// 包括创建 Layout 对象时的内存分配，控件信息数组的内存分配等，均通过 memArena 完成。
-// 如：
-// memArena 是一个 Arena(线性分配器)对象
-// Layout* layout = new (memArena.Allocate(sizeof(Layout)).buffer) Layout(num); // 分配内存并调用构造函数
-// ......(中间的处理)
-// ......(使用完毕后)
-// layout->~Layout(); // 调用析构函数
-// 另外，Layout 对象内部的控件信息数组也是通过 memArena 分配的内存来存储的。
 
-// ================================
-// 类名: Layout
-// ================================
 class Layout
 {
 private:
-	// 节点: linknode
 	struct linknode
 	{
-		CtrlInfo info;			// 本节点持有的控件信息(内嵌)
-		linknode* prev;			// 前驱节点(NULL = 头)
-		linknode* next;			// 后继节点(NULL = 尾)
+		CtrlInfo info;
+		linknode* prev;
+		linknode* next;
 	};
-	// 结构: linkinfo
 	struct linkinfo
 	{
-		linknode* pFirst;		// 首节点(NULL = 空链)
-		linknode* pLast;		// 尾节点(尾插 O(1); NULL = 空链)
-		linknode* pCursor;		// 下标游标节点(NULL = 游标无效)
-		size_t qwCursor;		// 游标节点当前对应的下标
+		linknode* pFirst;
+		linknode* pLast;
+		linknode* pCursor;
+		size_t qwCursor;
 	};
-	// 成员变量(union 两成员皆为指针 ⇒ union 尺寸 = 8 字节)
 	union
 	{
-		CtrlInfo* pCtrlInfos;	// 线性模式: 控件信息数组首址(取自 Arena)
-		linkinfo* link;			// 链式模式: 链视图(取自 Arena)
+		CtrlInfo* pCtrlInfos;
+		linkinfo* link;
 	} ctrls;
-	BOOL IsLinkmode;			// 储存模式标志(TRUE = 链式; FALSE = 线性; 创建时确定)
-	size_t qwNumCtrl;			// 控件数量
-	static Arena* memArena;		// 两种模式共用分配器: 布局对象自身 / 控件信息数组 / 链视图 / 线性数组
-	static MemPool* memPool;	// 链式模式专用分配器: 链节点
-	static Layout* NULLOBJ;		// 空对象
-	static CtrlInfo NULLINFO;	// 空INFO
+	BOOL IsLinkmode;
+	size_t qwNumCtrl;
+	static Arena* memArena;
+	static MemPool* memPool;
+	static Layout* NULLOBJ;
+	static CtrlInfo NULLINFO;
 	// 函数: NodeAt
 	// 描述: 取指定索引处的链节点(仅链式模式; 按游标就近定位)
 	linknode* NodeAt(size_t index);

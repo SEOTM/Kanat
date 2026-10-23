@@ -1,17 +1,5 @@
 #pragma once
-// 包含 Windows 基础类型定义
-// 具体类型：
-// DWORD, BOOL, LPVOID, LPCVOID, BYTE, SIZE_T
 #include <minwindef.h>
-
-// ================================
-// 模块: MemoryManager
-// 描述: 统一内存管理模块, 含三个按用途分工的分配器(接口契约见同目录 MemoryManager.md)
-// ================================
-
-// ================================
-// 公共辅助函数
-// ================================
 
 // 函数: AlignUp
 // 描述: 把大小向上对齐到指定对齐值
@@ -20,19 +8,12 @@ inline size_t AlignUp(size_t size, size_t align)
 	return (size + align - 1) & ~(align - 1);
 }
 
-// ================================
-// 结构体: BufferInfo
-// ================================
 struct BufferInfo
 {
-	VOID*	buffer;	// 内存首址(分配失败为 nullptr)
-	size_t	size;	// 请求大小(分配失败为 0)
+	VOID*	buffer;
+	size_t	size;
 };
 
-// ================================
-// 类名: Arena
-// 详见: 同目录 MemoryManager.md 的 Arena 类一节
-// ================================
 class Arena
 {
 public:
@@ -60,20 +41,15 @@ public:
 	VOID Reset();
 
 private:
-	BYTE*	buffer;			// Arena 首址
-	size_t	capacity;		// Arena 的容量
-	size_t	used;			// 已使用的字节数(按对齐后占用记账)
-	size_t	alignBytes;		// 默认分配对齐字节(16)
+	BYTE*	buffer;
+	size_t	capacity;
+	size_t	used;
+	size_t	alignBytes;
 
-	// 禁止拷贝
 	Arena(const Arena&) = delete;
 	Arena& operator=(const Arena&) = delete;
 };
 
-// ================================
-// 类名: MemPool
-// 详见: 同目录 MemoryManager.md 的 MemPool 类一节
-// ================================
 class MemPool
 {
 public:
@@ -96,46 +72,42 @@ public:
 	// 描述: 判断指针是否属于本池
 	BOOL Contains(LPCVOID p) const;
 
-	// 用户可请求的最大尺寸
 	static constexpr size_t MAX_SMALL_SIZE = 4096;
 
 private:
-	// 禁止拷贝
 	MemPool(const MemPool&) = delete;
 	MemPool& operator=(const MemPool&) = delete;
 
-	static constexpr size_t SLAB_SIZE = 64 * 1024;		// 每个 slab 64KB
-	static constexpr size_t NUM_SIZE_CLASSES = 28;		// 尺寸类数量(与 SIZE_CLASSES 表对应)
+	static constexpr size_t SLAB_SIZE = 64 * 1024;
+	static constexpr size_t NUM_SIZE_CLASSES = 28;
 
 	struct FreeBlock
 	{
-		FreeBlock*	next;		// 下一个空闲块
+		FreeBlock*	next;
 	};
 
 	struct SizeClass
 	{
-		size_t		blockSize;	// 块总大小(包含 BlockHeader)
-		FreeBlock*	freeList;	// 空闲块链表
+		size_t		blockSize;
+		FreeBlock*	freeList;
 	};
 
 	struct BlockHeader
 	{
-		SizeClass*	sizeClass;	// 指向所属尺寸类
-		size_t		padding;	// 填充到 16 字节对齐
+		SizeClass*	sizeClass;
+		size_t		padding;
 	};
 
-	// Slab 头, 内嵌于 slab 内存开头, 不额外分配
 	struct alignas(16) Slab
 	{
-		Slab*	next;			// 下一个 slab
+		Slab*	next;
 	};
 
-	// 尺寸类表(块总大小, 升序, 均为 16 的倍数; 末档保证 MAX_SMALL_SIZE 可服务)
 	static const size_t SIZE_CLASSES[NUM_SIZE_CLASSES];
 
-	SizeClass	sizeClasses[NUM_SIZE_CLASSES];	// 静态数组, 非 new
-	size_t		alignBytes;						// 用户数据对齐字节(16)
-	Slab*		slabList;						// slab 链表
+	SizeClass	sizeClasses[NUM_SIZE_CLASSES];
+	size_t		alignBytes;
+	Slab*		slabList;
 
 	// 函数: InitSizeClasses
 	// 描述: 初始化尺寸类数组

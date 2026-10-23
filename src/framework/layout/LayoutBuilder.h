@@ -1,16 +1,8 @@
-// ================================
-// 文件: LayoutBuilder.h
-// 描述: 布局对象构建原语 —— 中间态节点(布局模型) → Layout 对象展开, 布局对象的池内深拷贝,
-//       以及控件信息装配与"整枚布局"的控件缓冲回收(接口契约见同目录 LayoutBuilder.md)
-// ================================
 #pragma once
 #include <minwindef.h>
 #include "framework/layout/Layout.h"
 #include "framework/layout/LayoutModel.h"
 
-// ================================
-// 命名空间: LayoutBuilder
-// ================================
 namespace LayoutBuilder
 {
 	// 函数: BuildLayoutFromNode

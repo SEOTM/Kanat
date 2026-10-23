@@ -1,46 +1,25 @@
-// ================================================
-// 库名: Widgets
-// 描述: 控件库的部件层(可复用绘制件; 不含控件分派与控件数据)
-// ================================================
-
-// ================================
-// 区域: 编译常量定义区
-// ================================
-// 说明: 部件实现在本头文件的实现件(Widgets.cpp)内使用 ImVec2 运算符重载 ⇒ 宏须在 imgui.h 之前定义;
-//       本处再包一层条件编译, 便于其他包含者按任意顺序包含本头文件。
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
 
-// ================================
-// 区域: 文件包含区
-// ================================
-#include <windows.h>					// DWORD / BOOL / INT32 / LPCSTR 等基础类型(winnt.h)
-#include "framework/base/BasicDesign.h"		// AutoSize / ProjCR(部件上下文的注入面)
-#include "framework/base/ControlSpec.h"		// vec2(部件几何入参)
-#include "imgui.h"						// ImVec2 / ImGuiDataType(部件签名)
-#include "imgui_internal.h"				// ImGuiItemFlags_Disabled(项禁用标志读取)
+#include <windows.h>
+#include "framework/base/BasicDesign.h"
+#include "framework/base/ControlSpec.h"
+#include "imgui.h"
+#include "imgui_internal.h"
 
-// ================================
-// 命名空间: Controls::Widgets(部件 —— 控件库内部共享)
-// 说明: 部件三型(基础 / 命令 / 管道)、固定参数与绘制方式、取色口径、返回约定与各件语义见 Widgets.md。
-// ================================
 namespace Controls
 {
 	namespace Widgets
 	{
-		// ================================
-		// 区域: 基础部件(Widgets::Base; 控件库内部)
-		// ================================
 		namespace Base
 		{
-			// 类型: WidgetState
 			enum WidgetState : DWORD
 			{
-				WIDGET_STATE_BASE = 0,		// 基础状态(默认)
-				WIDGET_STATE_HOVERED = 1,	// 悬停
-				WIDGET_STATE_ACTIVE = 2,		// 激活(按下)
-				WIDGET_STATE_DISABLE = 4,	// 禁用
+				WIDGET_STATE_BASE = 0,
+				WIDGET_STATE_HOVERED = 1,
+				WIDGET_STATE_ACTIVE = 2,
+				WIDGET_STATE_DISABLE = 4,
 			};
 			// 函数: WidgetState::operator |
 			// 描述: 位或: 合并两枚部件状态位
@@ -60,14 +39,12 @@ namespace Controls
 			{
 				return lhs = lhs | rhs;
 			}
-			// 类型: StateColors
 			struct StateColors
 			{
-				DWORD crBase;			// 常态色
-				DWORD crHovered;		// 悬停色
-				DWORD crActive;			// 激活(按下)色
-				DWORD crDisable;		// 禁用色
-				// 方法: StateColor
+				DWORD crBase;
+				DWORD crHovered;
+				DWORD crActive;
+				DWORD crDisable;
 				DWORD StateColor(WidgetState state) const
 				{
 					if (state & WIDGET_STATE_DISABLE) return crDisable;
@@ -76,32 +53,29 @@ namespace Controls
 					return crBase;
 				}
 			};
-			// 类型: Palette
 			struct Palette
 			{
-				StateColors crBackground;	// 底色(整条背景)
-				StateColors crForeground;	// 底色面上的前景色(文本/图形)
-				StateColors crSurface;		// 表面色(段面: 两段件的右段/按钮)
-				StateColors crSurfaceForeground;	// 段面上的前景色(文本/图形)
-				StateColors crBorder;		// 边框色(整条外框)
-				StateColors crBorderInner;	// 内边框色
+				StateColors crBackground;
+				StateColors crForeground;
+				StateColors crSurface;
+				StateColors crSurfaceForeground;
+				StateColors crBorder;
+				StateColors crBorderInner;
 			};
 
-			// 类型: desc
 			enum desc
 			{
-				PALETTE = 0,	// 方式一: 配色方案
-				IMAGE = 1		// 方式二: 纹理(预留)
+				PALETTE = 0,
+				IMAGE = 1
 			};
 
-			// 类型: PaintWay
 			struct PaintWay
 			{
-				desc eDesc;				// 绘制方式(判别位)
+				desc eDesc;
 				union
 				{
-					Palette palette;	// 方式一: 配色方案(成品; 调用方按层次采样后传入)
-					void* pImage;		// 方式二: 纹理载荷(预留; 纹理引用本体随控件缓冲传入)
+					Palette palette;
+					void* pImage;
 				};
 			};
 
@@ -137,15 +111,10 @@ namespace Controls
 				FLOAT fRet = (parent - child) * 0.5f;
 				if (fRet < 0.0f)
 				{
-					fRet = 0.0f;			// 内容不小于容器: 不出现负偏移
+					fRet = 0.0f;
 				}
 				return fRet;
 			}
-			// ================================
-			// 区域: 帧类单件(无右段按钮的整格件; 共用口径见 Widgets.md 的 InputText 节)
-			// 返回约定: 位表与产出清单见 Widgets.md 的 InputText 节
-			// 说明: 底由 ImGui 原生帧绘制(内边距按声明高对齐); 边框画法按件分两类(见 Widgets.md 的 InputText 节)
-			// ================================
 			// 函数: InputText
 			// 描述: 帧类单行文本件(底与边框由 ImGui 原生帧绘制, 帧高对齐声明高)
 			int64_t InputText(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, CHAR* lpText, size_t nTextCap,
@@ -181,10 +150,6 @@ namespace Controls
 			// 描述: 进度状态显示件(底与文本取自配色方案)
 			BOOL ProgressStatic(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, int64_t current, int64_t expect, FLOAT fPadding);
 
-			// ================================
-			// 区域: 同名部件(与控件同名的基础部件; 语义见 Widgets.md 的概述)
-			// ================================
-
 			// 函数: Button
 			// 描述: 按钮件: 三态面 + 面内文字(自带可交互项)
 			int64_t Button(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, LPCSTR lpText);
@@ -205,11 +170,6 @@ namespace Controls
 			// 描述: 渲染面件: 有纹理时等比居中绘制, 无纹理时画占位面
 			BOOL RenderSurface(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, CONST VOID* pTexture, INT32 texWidth, INT32 texHeight);
 
-			// ================================
-			// 区域: 列表基础部件(行件; 语义见 Widgets.md 的 pfnListWidget 节)
-			// ================================
-
-			// 类型: pfnListWidget
 			using pfnListWidget = int64_t(*)(int id, vec2 pos, vec2 size, CONST PaintWay& way, VOID* lpItem);
 
 			// 函数: InputAction(列表行重载)
@@ -225,38 +185,34 @@ namespace Controls
 			int64_t ComboAction(int id, vec2 pos, vec2 size, CONST PaintWay& way, VOID* lpItem);
 		}
 
-		// ================================
-		// 区域: 命令部件(Widgets::Command; 语义见 Widgets.md 的 List 节)
-		// ================================
 		namespace Command
 		{
-			using Base::pfnListWidget;		// 行件函数指针(描述符字段的类型)
-			using Base::Palette;			// 部件配色(描述符字段与实现体内构造行件配色用)
-			using Base::PaintWay;			// 绘制方式(行件调用时的第四固定参数)
+			using Base::pfnListWidget;
+			using Base::Palette;
+			using Base::PaintWay;
 
-			// 结构: ListSpec
 			struct ListSpec
 			{
-				int id;						// 列表 ID
-				vec2 pos;					// 列表矩形左上角(窗口本地坐标)
-				vec2 size;					// 列表矩形尺寸
-				FLOAT fRowH;				// 行高(控件取 sizeinfo.controlHeight)
-				DWORD dwSelected;			// 选中项(LIST_SEL_NONE = 未选); 命令部件不消费
-				DWORD dwCount;				// 项目数量
-				Palette palette;			// 行件配色方案(调用方按列表所属控件层次构造)
-				DWORD crShell;				// 列表壳体底色(调用方按列表所属控件层次采样)
-				pfnListWidget pfnItem;		// 行件(NULL = 不绘制任何行)
-				VOID* lpItemBase;			// 项目数据首址
-				size_t cbItem;				// 单项目数据长度(步进)
-				pfnListWidget pfnSpecial;	// 特殊行行件(NULL = 无特殊行)
-				VOID* lpSpecial;			// 特殊行数据首址
-				size_t cbSpecial;			// 特殊行数据长度; 命令部件不消费(行件按自身约定解释行块)
-				DWORD dwSpecialFlag;		// 特殊行标志(LOW16 = 位置; HIGH16 = 高度(像素))
-				pfnCtrlEvent pfnEvent;		// 事件回调(第 6 步; NULL = 无事件出口)
-				VOID* pEventObj;			// 回调 obj(通常 = CtrlInfo*)
-				void* pEventData;			// 回调 data(通常 = 控件缓冲)
-				LPCSTR label;				// 列表子窗标签(NULL = 默认)
-				FLOAT fRounding;			// 列表子窗圆角(= 当前帧圆角; 设计内边距)
+				int id;
+				vec2 pos;
+				vec2 size;
+				FLOAT fRowH;
+				DWORD dwSelected;
+				DWORD dwCount;
+				Palette palette;
+				DWORD crShell;
+				pfnListWidget pfnItem;
+				VOID* lpItemBase;
+				size_t cbItem;
+				pfnListWidget pfnSpecial;
+				VOID* lpSpecial;
+				size_t cbSpecial;
+				DWORD dwSpecialFlag;
+				pfnCtrlEvent pfnEvent;
+				VOID* pEventObj;
+				void* pEventData;
+				LPCSTR label;
+				FLOAT fRounding;
 			};
 
 			// 函数: List
@@ -264,26 +220,22 @@ namespace Controls
 			int64_t List(CONST ListSpec& spec);
 		}
 
-		// ================================
-		// 区域: 管道部件(Widgets::Pipe; 语义见 Widgets.md 的 ListRow 节)
-		// ================================
 		namespace Pipe
 		{
-			using Base::pfnListWidget;		// 行件函数指针(逐行送入时的行绘制入口)
-			using Base::Palette;			// 部件配色(调用方构造一次后逐行送入)
-			using Base::PaintWay;			// 绘制方式(行件调用时的第四固定参数)
+			using Base::pfnListWidget;
+			using Base::Palette;
+			using Base::PaintWay;
 
-			// 结构: ListPipe
 			struct ListPipe
 			{
-				int id;					// 列表 ID(送入方控件 id)
-				vec2 pos;				// 列表矩形左上角(父窗口本地坐标)
-				vec2 size;				// 列表矩形尺寸
-				FLOAT fRowH;			// 行高(控件取 sizeinfo.controlHeight)
-				DWORD dwCount;			// 项目数量(仅用于判定是否需要收窄让位)
-				DWORD crShell;			// 列表壳体底色(调用方按列表所属控件层次采样)
-				LPCSTR label;			// 列表子窗标签(稳定 ID 的一部分; NULL = 默认)
-				FLOAT fRounding;		// 列表子窗圆角(= 当前帧圆角; 设计内边距)
+				int id;
+				vec2 pos;
+				vec2 size;
+				FLOAT fRowH;
+				DWORD dwCount;
+				DWORD crShell;
+				LPCSTR label;
+				FLOAT fRounding;
 			};
 
 			// 函数: ListRow
@@ -291,10 +243,6 @@ namespace Controls
 			int64_t ListRow(CONST ListPipe& pipe, int nRowId, vec2 posRow, FLOAT fRowH,
 				VOID* lpItem, pfnListWidget pfnItem, CONST PaintWay& way);
 		}
-
-		// ================================
-		// 区域: 部件上下文(本层即时模式状态; 语义见 Widgets.md 的 UpdateContext 节)
-		// ================================
 
 		// 函数: UpdateContext
 		// 描述: 更新部件层上下文(每帧渲染布局之前调用一次, 并复位编辑中计数)
@@ -304,4 +252,4 @@ namespace Controls
 		// 描述: 查询本帧是否存在处于编辑中的输入项(供控件层判定 IME 开关)
 		BOOL HasActiveInput();
 	}
-}
+}

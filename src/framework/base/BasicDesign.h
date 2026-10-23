@@ -1,14 +1,10 @@
 #pragma once
 #include <minwindef.h>
-#include <windef.h>		// RECT(显示器工作区查询的入参/出参)
+#include <windef.h>
 #include "framework/base/mem/MemoryManager.h"
 
 #define MAKE_CR_IMVEC4(dw) { ((dw) & 0xFF) / 255.0f, (((dw) >> 8) & 0xFF) / 255.0f, (((dw) >> 16) & 0xFF) / 255.0f, ((dw) >> 24) / 255.0f }
 
-// ================================
-// 类名: ScreenRef
-// 描述: 屏幕参考尺寸单例 —— 提供屏幕宽/高/控件高/字号/间距等像素基准
-// ================================
 class ScreenRef
 {
 private:
@@ -42,61 +38,48 @@ public:
 	static DWORD GetSpace();
 };
 
-// ================================
-// 类名: AutoSize
-// 描述: 根据参考大小自动调整尺寸的类 (与 ScreenRef 不同的是，可以传递经验参数)
-// ================================
 class AutoSize
 {
 public:
-	// 枚举类型，决定尺寸计算基于下述哪一情况
 	enum AutoSizeMode
 	{
-		AUTO_SIZE_BY_SCREEN_WIDTH,	// 基于屏幕宽度
-		AUTO_SIZE_BY_SCREEN_HEIGHT,	// 基于屏幕高度
-		AUTO_SIZE_BY_WINDOW_WIDTH,	// 基于窗口宽度
-		AUTO_SIZE_BY_WINDOW_HEIGHT	// 基于窗口高度
+		AUTO_SIZE_BY_SCREEN_WIDTH,
+		AUTO_SIZE_BY_SCREEN_HEIGHT,
+		AUTO_SIZE_BY_WINDOW_WIDTH,
+		AUTO_SIZE_BY_WINDOW_HEIGHT
 	};
 
-	// 结构: SizeInfo
-	// 描述: 存储尺寸信息的结构体模板
 	template<typename numerical>
 	struct SizeInfo
 	{
-		numerical screenWidth;		// 屏幕宽度
-		numerical screenHeight;		// 屏幕高度
-		numerical windowWidth;		// 窗口宽度
-		numerical windowHeight;		// 窗口高度
-		numerical controlHeight;		// 控件高度
-		numerical fontSize;			// 字体大小
-		numerical space;				// 设计间隔
-		numerical padding;			// 设计内边距
+		numerical screenWidth;
+		numerical screenHeight;
+		numerical windowWidth;
+		numerical windowHeight;
+		numerical controlHeight;
+		numerical fontSize;
+		numerical space;
+		numerical padding;
 	};
-	// 为两种常见类型定义别名
-	using SizeInfoDWORD = SizeInfo<DWORD>;	// 整型尺寸信息
-	using SizeInfoFLOAT = SizeInfo<FLOAT>;	// 浮点型尺寸信息
+	using SizeInfoDWORD = SizeInfo<DWORD>;
+	using SizeInfoFLOAT = SizeInfo<FLOAT>;
 
-	// 结构: RatioInfo
-	// 描述: 存储比例信息的结构体
 	struct RatioInfo
 	{
-		DWORD dwRatioWidth;			// 窗口宽度占参考基准数值的比例 (千分比，范围 0 - 10000)
-		DWORD dwRatioHeight;		// 窗口高度占参考基准数值的比例 (千分比，范围 0 - 10000)
-		DWORD dwRatioControlHeight; // 控件高度占参考基准数值的比例 (千分比，范围 0 - 10000)
-		DWORD dwRatioFontSize;		// 字体大小占参考基准数值的比例 (千分比，范围 0 - 10000)
-		DWORD dwRatioSpace;			// 设计间隔占参考基准数值的比例 (千分比，范围 0 - 10000)
-		DWORD dwRatioPadding;		// 设计内边距占参考基准数值的比例 (千分比，范围 0 - 10000)
+		DWORD dwRatioWidth;
+		DWORD dwRatioHeight;
+		DWORD dwRatioControlHeight;
+		DWORD dwRatioFontSize;
+		DWORD dwRatioSpace;
+		DWORD dwRatioPadding;
 	};
 private:
-	// 整数成员变量
 	SizeInfoDWORD sizeDWORD;
-	// 浮点数成员变量
 	SizeInfoFLOAT sizeFLOAT;
 
-	// 比例信息
-	AutoSizeMode sizeMode;	// 尺寸计算模式
-	DWORD dwBaseValue;		// 参考基准数值 (根据 sizeMode 决定是屏幕宽度、屏幕高度、窗口宽度还是窗口高度)
-	RatioInfo ratioInfo;	// 比例信息
+	AutoSizeMode sizeMode;
+	DWORD dwBaseValue;
+	RatioInfo ratioInfo;
 
 	// 函数: AutoSize
 	// 描述: 将输入尺寸保存，并自动扩展为其他尺寸类型，同时保存比例信息
@@ -148,8 +131,6 @@ public:
 	BOOL SetSize(const SizeInfoDWORD& sizeInfo);
 	BOOL SetSize(const SizeInfoFLOAT& sizeInfo);
 
-	// 模板化函数区域，用于获取尺寸信息
-
 	// 函数: GetSizeInfo
 	// 描述: 获取尺寸信息
 	template<typename numerical>
@@ -188,59 +169,35 @@ public:
 	numerical GetPadding() const;
 };
 
-// ================================
-// 类名: ProjCR
-// 描述: 投影颜色 —— 一条"底色端 → 光色端"的一维单调色轴 + 槽位系统, 按绘图层号取色
-// 说明: ① 一条投影 = 一套配色(取代原八具名色槽方案): 底色端与光色端定义轴的两端,
-//          与亮暗模式无关;
-//       ② 亮暗模式的切换手段 = 采样方向(不对调底色与光色): 方向在"喂给采样函数之前"把层号
-//          反射为采样参数(暗到亮: 层号即参数 / 亮到暗: 参数 = 层数 + 1 − 层号) ⇒ 两种方向下
-//          采样函数拿到的是同一枚函数在不同参数上的取值 ⇒ 函数的单调性不受方向影响
-//          (若方向破坏单调性, 同一对底色/光色就无法同时服务两种模式);
-//       ③ 层号 1-based, 合法域 = 1..层数; 越界属调用方违约 ⇒ 本类不做边界处理,
-//          亦不提供归一化浮点入口与"槽位组合"入口(状态经槽位参数取得);
-//       ④ 色值口径 = ImGui 打包值(0xAABBGGRR; 低字节 = R, 与同文件 MAKE_CR_IMVEC4 一致);
-//          插值逐字节进行(含 α) ⇒ 结果与通道命名口径无关;
-//       ⑤ 轴位置表按层数动态分配: 经 MemoryManager 的小对象池(超池上限回落线性分配器),
-//          分配器由 SetAllocators 一次性静态注入(与 Layout/LayoutModel 同源)。
-// ================================
 class ProjCR
 {
 public:
-	// 枚举: SAMPLE_DIRECTION
-	// 描述: 采样方向(层号反射为采样参数的方式; 亮暗模式即由此切换)
 	enum SAMPLE_DIRECTION {
-		PROJ_DARK_TO_LIGHT = 0,		// 暗到亮: 层号即采样参数(层 1 → 参数 1)
-		PROJ_LIGHT_TO_DARK = 1		// 亮到暗: 层号反射为采样参数(层 1 → 参数 层数)
+		PROJ_DARK_TO_LIGHT = 0,
+		PROJ_LIGHT_TO_DARK = 1
 	};
 
-	// 枚举: CR_SLOT
-	// 描述: 槽位(取样目标; 基础槽取该层表面色, 其余为派生色)
 	enum CR_SLOT {
-		PROJ_SLOT_SURFACE = 0,		// 基础槽: 表面色
-		PROJ_SLOT_HOVER = 1,		// 附属槽: 表面色与本层 +1 层表面色之差 × SLOT_OFFSET_RATIO(端层无 +1 层 ⇒ 取表面色)
-		PROJ_SLOT_ACTIVE = 2,		// 附属槽: 表面色与本层 −1 层表面色之差 × SLOT_OFFSET_RATIO(端层无 −1 层 ⇒ 取表面色)
-		PROJ_SLOT_CONTRAST = 3		// 对比槽: 表面之上的对比色(亮面呈暗 / 暗面呈亮 / 中灰不等值)
+		PROJ_SLOT_SURFACE = 0,
+		PROJ_SLOT_HOVER = 1,
+		PROJ_SLOT_ACTIVE = 2,
+		PROJ_SLOT_CONTRAST = 3
 	};
 
-	// 类型: SampleFunc
-	// 描述: 单调采样函数(逐层调用; 返回该层在轴上的位置比例 ∈ [0,1]);
-	//       NULL = 线性均匀采样(w = (参数 − 1) / (层数 − 1))
 	using SampleFunc = FLOAT (*)(DWORD dwParam, DWORD dwLayers);
 
-	// 对比槽 / 边框的派生强度默认值(经 SetContrastStrength / SetBorderStrength 可改)
-	static constexpr FLOAT DEFAULT_CONTRAST_STRENGTH = 1.0f;	// 对比槽: 满对比(承载文字与强调色)
-	static constexpr FLOAT DEFAULT_BORDER_STRENGTH = 0.25f;	// 边框: 柔和(取中后向远端靠近的幅度)
-	static constexpr FLOAT SLOT_OFFSET_RATIO = 0.75f;			// 悬停 / 激活: 偏移比例(乘"本层与相邻一层的表面色差")
+	static constexpr FLOAT DEFAULT_CONTRAST_STRENGTH = 1.0f;
+	static constexpr FLOAT DEFAULT_BORDER_STRENGTH = 0.25f;
+	static constexpr FLOAT SLOT_OFFSET_RATIO = 0.75f;
 private:
-	DWORD crBase;					// 底色端(轴的低/暗端; 与亮暗模式无关)
-	DWORD crLight;					// 光色端(轴的高/亮端; 与亮暗模式无关)
-	SAMPLE_DIRECTION eDirection;	// 采样方向
-	DWORD dwLayers;					// 层数(采样数量)
-	FLOAT fContrastStrength;		// 对比槽的远端强度 ρ(0..1)
-	FLOAT fBorderStrength;			// 边框的远端强度 ρ(0..1)
-	SampleFunc pfnSample;			// 单调采样函数(NULL = 线性均匀)
-	BufferInfo layers;				// 轴位置表(按方向与采样函数展开的逐层轴位置; 见 RebuildLayers)
+	DWORD crBase;
+	DWORD crLight;
+	SAMPLE_DIRECTION eDirection;
+	DWORD dwLayers;
+	FLOAT fContrastStrength;
+	FLOAT fBorderStrength;
+	SampleFunc pfnSample;
+	BufferInfo layers;
 
 	// 函数: ProjCR
 	// 描述: 私有构造(仅工厂 Create 可用 ⇒ 未经校验无法构造)
@@ -348,7 +305,6 @@ public:
 	// 描述: 取无效标志(未构造成功者恒 TRUE)
 	BOOL IsInvalid() const;
 };
-
 
 // 函数: operator*
 // 描述: 逐字段相乘两份尺寸信息(八项参考量各自相乘)

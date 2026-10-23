@@ -1,20 +1,8 @@
-// ================================
-// 文件: AppEnv.cpp
-// 描述: 应用环境件实现(接口契约见同目录 AppEnv.md)
-// ================================
-
-// ================================
-// 区域: 文件包含区
-// ================================
 #include <windows.h>
-#include <dwmapi.h>		// DWM 圆角属性(DWMWA_WINDOW_CORNER_PREFERENCE / DWMWCP_ROUND)
+#include <dwmapi.h>
 #include <stdio.h>
 
 #include "framework/base/AppEnv.h"
-
-// ================================
-// 区域: 接口实现区
-// ================================
 
 // 函数: InitConsoleUtf8
 // 描述: 把控制台输入与输出代码页都设为 UTF-8
@@ -50,7 +38,6 @@ VOID AppEnv::ApplyWindowCornerRounding(HWND hWnd, DWORD w, DWORD h, DWORD space,
 	{
 		return;
 	}
-	// ① DWM 圆角属性
 	{
 		DWM_WINDOW_CORNER_PREFERENCE preference = DWMWCP_ROUND;
 		HRESULT hr = DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &preference, sizeof(preference));
@@ -62,7 +49,6 @@ VOID AppEnv::ApplyWindowCornerRounding(HWND hWnd, DWORD w, DWORD h, DWORD space,
 			return;
 		}
 	}
-	// ② 回退: 以圆角矩形区域裁剪窗口
 	{
 		HRGN hRgn = CreateRoundRectRgn(0, 0, (int)w, (int)h, (int)space, (int)space);
 		if (hRgn == NULL)
@@ -71,7 +57,7 @@ VOID AppEnv::ApplyWindowCornerRounding(HWND hWnd, DWORD w, DWORD h, DWORD space,
 		}
 		if (SetWindowRgn(hWnd, hRgn, TRUE) == 0)
 		{
-			DeleteObject(hRgn);		// 设置失败 = 所有权未转移 ⇒ 由本处释放
+			DeleteObject(hRgn);
 			return;
 		}
 		if (pbByRgn != NULL) { *pbByRgn = TRUE; }

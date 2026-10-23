@@ -13,18 +13,10 @@ DWORD ScreenRef::GetScreenHeight()
 	return GetSystemMetrics(SM_CYSCREEN);
 }
 
-// ================================
-// 区域: 显示器工作区查询(ScreenRef 续)
-// 说明: 窗口位置声明需要回答两个系统侧问题 —— "主显示器的工作区在哪"(随机落点的范围)与
-//       "某个矩形能否落在当前屏幕上"(声明位置是否越屏); 两问都归屏幕参考件
-// ================================
-
-// 结构: MonitorProbe
-// 描述: 显示器工作区相交判定的探针(经 lParam 传入枚举回调)
 struct MonitorProbe
 {
-	CONST RECT* pRect;		// 待判定矩形(桌面坐标)
-	BOOL        bHit;		// 是否已与某显示器工作区相交(命中即停止枚举)
+	CONST RECT* pRect;
+	BOOL        bHit;
 };
 
 // 函数: ProbeMonitorProc
@@ -37,18 +29,18 @@ static BOOL CALLBACK ProbeMonitorProc(HMONITOR hMonitor, HDC hdc, LPRECT lprcCli
 	MONITORINFO mi{};
 	if (pProbe == NULL || pProbe->pRect == NULL)
 	{
-		return TRUE;		// 探针无效 ⇒ 继续枚举(无事可做)
+		return TRUE;
 	}
 	mi.cbSize = sizeof(mi);
 	if (GetMonitorInfoW(hMonitor, &mi) == FALSE)
 	{
-		return TRUE;		// 取不到该显示器信息 ⇒ 跳过它(继续枚举)
+		return TRUE;
 	}
 	RECT rcHit{};
 	if (IntersectRect(&rcHit, pProbe->pRect, &mi.rcWork) != FALSE)
 	{
 		pProbe->bHit = TRUE;
-		return FALSE;		// 已判定 ⇒ 停止枚举
+		return FALSE;
 	}
 	return TRUE;
 }
@@ -98,15 +90,10 @@ DWORD ScreenRef::GetSpace()
 	return GetSystemMetrics(SM_CYSCREEN) / 100;
 }
 
-// ================================
-// 类名: AutoSize
-// 描述: 根据参考大小自动调整尺寸的类 (与 ScreenRef 不同的是，可以传递经验参数)
-// ================================
 // 函数: CalculateSizeByRatio
 // 描述: 根据比例参数计算尺寸
 static AutoSize::SizeInfoDWORD CalculateSizeByRatio(DWORD dwBaseValue, const AutoSize::RatioInfo& ratioInfo)
 {
-	// 计算尺寸信息
 	AutoSize::SizeInfoDWORD sizeInfo;
 	sizeInfo.screenWidth = ScreenRef::GetScreenWidth();
 	sizeInfo.screenHeight = ScreenRef::GetScreenHeight();
@@ -159,9 +146,7 @@ AutoSize::AutoSize()
 AutoSize::AutoSize(const SizeInfoDWORD& sizeInfo, RatioInfo& ratioInfo, DWORD dwBaseValue, AutoSizeMode sizeMode)
 {
 	this->sizeDWORD = sizeInfo;
-	// 计算浮点数尺寸信息
 	this->sizeFLOAT = ConvertSizeInfo<DWORD, FLOAT>(sizeInfo);
-	// 保存比例信息
 	this->ratioInfo = CalculateRatioBySize(dwBaseValue, sizeInfo);
 	this->sizeMode = sizeMode;
 	this->dwBaseValue = dwBaseValue;
@@ -169,9 +154,7 @@ AutoSize::AutoSize(const SizeInfoDWORD& sizeInfo, RatioInfo& ratioInfo, DWORD dw
 AutoSize::AutoSize(const SizeInfoFLOAT& sizeInfo, RatioInfo& ratioInfo, DWORD dwBaseValue, AutoSizeMode sizeMode)
 {
 	this->sizeFLOAT = sizeInfo;
-	// 计算整数尺寸信息
 	this->sizeDWORD = ConvertSizeInfo<FLOAT, DWORD>(sizeInfo);
-	// 保存比例信息
 	this->ratioInfo = CalculateRatioBySize(dwBaseValue, this->sizeDWORD);
 	this->sizeMode = sizeMode;
 	this->dwBaseValue = dwBaseValue;
@@ -180,7 +163,6 @@ AutoSize::AutoSize(const SizeInfoFLOAT& sizeInfo, RatioInfo& ratioInfo, DWORD dw
 // 描述: 通过比例参数创建 AutoSize 对象
 AutoSize	 AutoSize::CreateByRatio(const RatioInfo& ratioInfo, AutoSizeMode mode)
 {
-	// 确定参考基准数值
 	DWORD dwBaseValue = 0;
 	switch (mode)
 	{
@@ -191,18 +173,15 @@ AutoSize	 AutoSize::CreateByRatio(const RatioInfo& ratioInfo, AutoSizeMode mode)
 		dwBaseValue = ScreenRef::GetScreenHeight();
 		break;
 	case AUTO_SIZE_BY_WINDOW_WIDTH:
-		// 默认窗口宽度为屏幕宽度的 0.5 倍
 		dwBaseValue = ScreenRef::GetScreenWidth() / 2;
 		break;
 	case AUTO_SIZE_BY_WINDOW_HEIGHT:
-		// 默认窗口高度为屏幕高度的 0.5 倍
 		dwBaseValue = ScreenRef::GetScreenHeight() / 2;
 		break;
 	default:
 		dwBaseValue = ScreenRef::GetScreenWidth();
 		break;
 	}
-	// 计算尺寸信息
 	AutoSize::SizeInfoDWORD sizeInfo = CalculateSizeByRatio(dwBaseValue, ratioInfo);
 	return AutoSize(sizeInfo, const_cast<RatioInfo&>(ratioInfo), dwBaseValue, mode);
 }
@@ -212,7 +191,6 @@ AutoSize AutoSize::CreateByRatio(
 	DWORD dwRatioSpace, DWORD dwRatioPadding,
 	AutoSizeMode mode)
 {
-	// 构造比例信息
 	RatioInfo ratioInfo;
 	ratioInfo.dwRatioWidth = dwRatioWidth;
 	ratioInfo.dwRatioHeight = dwRatioHeight;
@@ -226,7 +204,6 @@ AutoSize AutoSize::CreateByRatio(
 // 描述: 通过固定尺寸参数创建 AutoSize 对象 (但是需要指定 sizeMode)
 AutoSize AutoSize::CreateByFixedSize(const SizeInfoDWORD& sizeInfo, AutoSizeMode mode)
 {
-	// 确定参考基准数值
 	DWORD dwBaseValue = 0;
 	switch (mode)
 	{
@@ -246,7 +223,6 @@ AutoSize AutoSize::CreateByFixedSize(const SizeInfoDWORD& sizeInfo, AutoSizeMode
 		dwBaseValue = ScreenRef::GetScreenWidth();
 		break;
 	}
-	// 计算比例信息
 	RatioInfo ratioInfo = CalculateRatioBySize(dwBaseValue, sizeInfo);
 	return AutoSize(sizeInfo, ratioInfo, dwBaseValue, mode);
 }
@@ -256,7 +232,6 @@ AutoSize AutoSize::CreateByFixedSize(
 	DWORD dwSpace, DWORD dwPadding,
 	AutoSizeMode mode)
 {
-	// 构造尺寸信息
 	SizeInfoDWORD sizeInfo;
 	sizeInfo.screenWidth = ScreenRef::GetScreenWidth();
 	sizeInfo.screenHeight = ScreenRef::GetScreenHeight();
@@ -273,17 +248,14 @@ AutoSize AutoSize::CreateByFixedSize(
 // 描述: 设置窗口矩形 (用于更新窗口宽度和高度)
 BOOL AutoSize::SetWindowRect(DWORD dwWindowWidth, DWORD dwWindowHeight)
 {
-	// 仅在基于窗口尺寸的模式下有效
 	if (sizeMode != AUTO_SIZE_BY_WINDOW_WIDTH && sizeMode != AUTO_SIZE_BY_WINDOW_HEIGHT)
 	{
 		return FALSE;
 	}
-	// 更新窗口尺寸
 	sizeDWORD.windowWidth = dwWindowWidth;
 	sizeDWORD.windowHeight = dwWindowHeight;
 	sizeFLOAT.windowWidth = static_cast<FLOAT>(dwWindowWidth);
 	sizeFLOAT.windowHeight = static_cast<FLOAT>(dwWindowHeight);
-	// 重新计算参考基准数值
 	if (sizeMode == AUTO_SIZE_BY_WINDOW_WIDTH)
 	{
 		dwBaseValue = dwWindowWidth;
@@ -292,7 +264,6 @@ BOOL AutoSize::SetWindowRect(DWORD dwWindowWidth, DWORD dwWindowHeight)
 	{
 		dwBaseValue = dwWindowHeight;
 	}
-	// 重新计算其他尺寸信息
 	sizeDWORD = CalculateSizeByRatio(dwBaseValue, ratioInfo);
 	sizeFLOAT = ConvertSizeInfo<DWORD, FLOAT>(sizeDWORD);
 	return TRUE;
@@ -301,9 +272,7 @@ BOOL AutoSize::SetWindowRect(DWORD dwWindowWidth, DWORD dwWindowHeight)
 // 描述: 设置比例参数 (用于更新比例参数)
 BOOL AutoSize::SetRatio(const RatioInfo& ratioInfo)
 {
-	// 更新比例信息
 	this->ratioInfo = ratioInfo;
-	// 重新计算尺寸信息
 	sizeDWORD = CalculateSizeByRatio(dwBaseValue, ratioInfo);
 	sizeFLOAT = ConvertSizeInfo<DWORD, FLOAT>(sizeDWORD);
 	return TRUE;
@@ -313,7 +282,6 @@ BOOL AutoSize::SetRatio(
 	DWORD dwRatioControlHeight, DWORD dwRatioFontSize,
 	DWORD dwRatioSpace, DWORD dwRatioPadding)
 {
-	// 构造比例信息
 	RatioInfo ratioInfo;
 	ratioInfo.dwRatioWidth = dwRatioWidth;
 	ratioInfo.dwRatioHeight = dwRatioHeight;
@@ -327,25 +295,18 @@ BOOL AutoSize::SetRatio(
 // 描述: 设置固定尺寸参数 (用于更新固定尺寸参数)
 BOOL AutoSize::SetSize(const SizeInfoDWORD& sizeInfo)
 {
-	// 更新尺寸信息
 	this->sizeDWORD = sizeInfo;
-	// 重新计算比例信息
 	this->ratioInfo = CalculateRatioBySize(dwBaseValue, sizeInfo);
-	// 计算浮点数尺寸信息
 	this->sizeFLOAT = ConvertSizeInfo<DWORD, FLOAT>(sizeInfo);
 	return TRUE;
 }
 BOOL AutoSize::SetSize(const SizeInfoFLOAT& sizeInfo)
 {
-	// 更新尺寸信息
 	this->sizeFLOAT = sizeInfo;
-	// 计算整数尺寸信息
 	this->sizeDWORD = ConvertSizeInfo<FLOAT, DWORD>(sizeInfo);
-	// 重新计算比例信息
 	this->ratioInfo = CalculateRatioBySize(dwBaseValue, this->sizeDWORD);
 	return TRUE;
 }
-// 模板实例化声明区 —— 本区所有模板函数(声明见 BasicDesign.h)只显式实例化两个常用类型 DWORD / FLOAT
 
 template<typename numerical>
 CONST AutoSize::SizeInfo<numerical>& AutoSize::GetSizeInfoRef() const
@@ -354,13 +315,11 @@ CONST AutoSize::SizeInfo<numerical>& AutoSize::GetSizeInfoRef() const
 	defaultSizeInfo = ConvertSizeInfo<DWORD, numerical>(sizeDWORD);
 	return defaultSizeInfo;
 }
-// 模板特例化: 获取 DWORD 类型尺寸信息引用
 template<>
 CONST AutoSize::SizeInfo<DWORD>& AutoSize::GetSizeInfoRef<DWORD>() const
 {
 	return sizeDWORD;
 }
-// 模板特例化: 获取 FLOAT 类型尺寸信息引用
 template<>
 CONST AutoSize::SizeInfo<FLOAT>& AutoSize::GetSizeInfoRef<FLOAT>() const
 {
@@ -431,7 +390,6 @@ numerical AutoSize::GetPadding() const
 	return GetSizeInfoRef<numerical>().padding;
 }
 
-// 模板实例化声明
 template AutoSize::SizeInfo<DWORD> AutoSize::GetSizeInfo<DWORD>() const;
 template AutoSize::SizeInfo<FLOAT> AutoSize::GetSizeInfo<FLOAT>() const;
 template DWORD AutoSize::GetScreenWidth<DWORD>() const;
@@ -451,18 +409,8 @@ template FLOAT AutoSize::GetSpace<FLOAT>() const;
 template DWORD AutoSize::GetPadding<DWORD>() const;
 template FLOAT AutoSize::GetPadding<FLOAT>() const;
 
-// ================================
-// 文件作用域状态: 分配器(一次性静态注入; 仿 Layout/LayoutModel 的同源注入口径)
-// 说明: 轴位置表是"不定生命周期的小对象" ⇒ 首选小对象池; 超出池上限时回落线性分配器
-//       (回落的表无单块回收接口, 随该分配器整体释放 —— 与 LM-1 的回落项同性质)
-// ================================
-static Arena* pMemArena = NULL;		// 线性分配器(表回落用)
-static MemPool* pMemPool = NULL;	// 小对象池(表的首选来源)
-
-// ================================
-// 类名: ProjCR
-// 描述: 投影颜色实现(轴位置表 / 槽位派生 / 边框 / 工厂与内存; 声明见 BasicDesign.h)
-// ================================
+static Arena* pMemArena = NULL;
+static MemPool* pMemPool = NULL;
 
 // 函数: ProjCR
 // 描述: 私有构造(默认口径: 线性均匀采样 + 两个派生强度的默认值)
@@ -498,25 +446,20 @@ VOID ProjCR::SetAllocators(Arena* arena, MemPool* pool)
 // 描述: 逐层调用校验采样函数: ①每个返回值 ∈ [0,1] ②序列非严格单调(不得既升又降)
 BOOL ProjCR::IsSampleFuncValid(SampleFunc pfnSample, DWORD dwLayers)
 {
-	// 变量声明区
-	BOOL bAsc = FALSE;		// 序列中存在上升步
-	BOOL bDesc = FALSE;		// 序列中存在下降步
-	FLOAT fPrev = 0.0f;		// 上一层返回值
-	// 1. 线性均匀采样必然单调且在值域内 ⇒ 直接通过
+	BOOL bAsc = FALSE;
+	BOOL bDesc = FALSE;
+	FLOAT fPrev = 0.0f;
 	if (pfnSample == NULL)
 	{
 		return TRUE;
 	}
-	// 2. 层数不足两层时无有效参数点集(构造侧已单独拒绝, 此处防御)
 	if (dwLayers < 2)
 	{
 		return FALSE;
 	}
-	// 3. 逐层调用: 先判值域, 再记升降步
 	for (DWORD k = 1; k <= dwLayers; k++)
 	{
 		CONST FLOAT fValue = pfnSample(k, dwLayers);
-		// 值域判据: 必须落在 [0,1](NaN 亦在此被拒 —— 两个比较皆为假)
 		if (!(fValue >= 0.0f && fValue <= 1.0f))
 		{
 			return FALSE;
@@ -534,7 +477,6 @@ BOOL ProjCR::IsSampleFuncValid(SampleFunc pfnSample, DWORD dwLayers)
 		}
 		fPrev = fValue;
 	}
-	// 4. 单调判据: 既升又降 = 振荡 ⇒ 拒绝(允许相等 = 非严格)
 	if (bAsc && bDesc)
 	{
 		return FALSE;
@@ -546,7 +488,6 @@ BOOL ProjCR::IsSampleFuncValid(SampleFunc pfnSample, DWORD dwLayers)
 // 描述: 远端法: 把轴位置朝"离它更远的那一端"推进 ρ 比例
 FLOAT ProjCR::PushToFarEnd(FLOAT fAxis, FLOAT fStrength)
 {
-	// 变量声明区(远端端点: 轴位置 >= 0.5 者离底色端(0)更远; 平局固定取底色端)
 	CONST FLOAT fFar = (fAxis >= 0.5f) ? 0.0f : 1.0f;
 	return fAxis + (fFar - fAxis) * fStrength;
 }
@@ -555,9 +496,7 @@ FLOAT ProjCR::PushToFarEnd(FLOAT fAxis, FLOAT fStrength)
 // 描述: 轴位置 → 颜色(按底色端/光色端逐字节线性插值)
 DWORD ProjCR::AxisToColor(FLOAT fAxis) const
 {
-	// 变量声明区
 	DWORD dwRet = 0;
-	// 逐字节插值: 同字节位置之间插值 ⇒ 与 ARGB / RGBA 的命名口径无关(含 α 字节)
 	for (INT i = 0; i < 4; i++)
 	{
 		CONST DWORD dwShift = (DWORD)(i * 8);
@@ -582,9 +521,7 @@ DWORD ProjCR::AxisToColor(FLOAT fAxis) const
 // 描述: 两色逐字节线性插值(比例 0 = 前者; 1 = 后者; 与 AxisToColor 同口径, 含 α 字节)
 DWORD ProjCR::BlendColor(DWORD crFrom, DWORD crTo, FLOAT fRatio)
 {
-	// 变量声明区
 	DWORD dwRet = 0;
-	// 逐字节插值: 同字节位置之间插值 ⇒ 与 ARGB / RGBA 的命名口径无关(含 α 字节)
 	for (INT i = 0; i < 4; i++)
 	{
 		CONST DWORD dwShift = (DWORD)(i * 8);
@@ -609,7 +546,6 @@ DWORD ProjCR::BlendColor(DWORD crFrom, DWORD crTo, FLOAT fRatio)
 // 描述: 按层数分配轴位置表(小对象池优先, 超出池上限回落线性分配器)
 BufferInfo ProjCR::AllocLayers(DWORD dwLayers)
 {
-	// 变量声明区
 	BufferInfo info{ nullptr, 0 };
 	CONST size_t qwSize = sizeof(FLOAT) * (size_t)dwLayers;
 	if (pMemPool != NULL && qwSize <= MemPool::MAX_SMALL_SIZE)
@@ -641,9 +577,7 @@ VOID ProjCR::FreeLayers(BufferInfo info)
 // 描述: 重算轴位置表(底色/光色/方向/层数/采样函数任一变更后调用)
 VOID ProjCR::RebuildLayers()
 {
-	// 变量声明区
 	FLOAT* pAxis = NULL;
-	// 表未就绪或层数非法 ⇒ 无表可算
 	if (layers.buffer == NULL || dwLayers < 2)
 	{
 		return;
@@ -651,7 +585,6 @@ VOID ProjCR::RebuildLayers()
 	pAxis = (FLOAT*)layers.buffer;
 	for (DWORD k = 1; k <= dwLayers; k++)
 	{
-		// 方向反射: 在喂给采样函数之前完成(暗到亮: 层号即参数 / 亮到暗: 参数 = 层数 + 1 − 层号)
 		CONST DWORD dwParam = (eDirection == PROJ_DARK_TO_LIGHT) ? k : (dwLayers + 1 - k);
 		FLOAT fAxis = 0.0f;
 		if (pfnSample != NULL)
@@ -671,28 +604,23 @@ VOID ProjCR::RebuildLayers()
 BOOL ProjCR::Create(ProjCR*& pOut, DWORD crBase, DWORD crLight, SAMPLE_DIRECTION eDirection,
 	DWORD dwLayers, SampleFunc pfnSample)
 {
-	// 变量声明区
 	BOOL bRet = FALSE;
 	ProjCR* pObj = NULL;
 	BufferInfo info{ nullptr, 0 };
 	pOut = NULL;
-	// 1. 层数校验: 层间差值需要至少两层 ⇒ 不足即阻止构造
 	if (dwLayers < 2)
 	{
 		return bRet;
 	}
-	// 2. 采样函数校验(逐层调用): 失败即阻止构造
 	if (IsSampleFuncValid(pfnSample, dwLayers) == FALSE)
 	{
 		return bRet;
 	}
-	// 3. 分配轴位置表
 	info = AllocLayers(dwLayers);
 	if (info.buffer == NULL)
 	{
 		return bRet;
 	}
-	// 4. 构造对象并落初值(校验已过 ⇒ 无需再判)
 	pObj = new ProjCR();
 	if (pObj == NULL)
 	{
@@ -719,7 +647,7 @@ VOID ProjCR::Release(ProjCR*& pOut)
 	{
 		return;
 	}
-	delete pOut;		// 析构内归还轴位置表
+	delete pOut;
 	pOut = NULL;
 }
 
@@ -727,21 +655,17 @@ VOID ProjCR::Release(ProjCR*& pOut)
 // 描述: 取某层的槽位色(取色正门)
 DWORD ProjCR::Sample(DWORD dwLayer, CR_SLOT eSlot) const
 {
-	// 变量声明区
 	CONST FLOAT* pAxis = NULL;
-	DWORD dwNearLayer = dwLayer;		// 相邻层的绘图层号(悬停 = 本层 +1 / 激活 = 本层 −1)
+	DWORD dwNearLayer = dwLayer;
 	FLOAT fAxis = 0.0f;
-	DWORD crSurf = 0;					// 本层表面色
-	DWORD crNear = 0;					// 相邻层表面色
-	// 未构造成功(工厂被阻止 / 表分配失败) ⇒ 返回 0(与 IsInvalid 口径一致;
-	// 这不是"层号边界处理" —— 层号越界仍属调用方违约, 本类不做处理)
+	DWORD crSurf = 0;
+	DWORD crNear = 0;
 	if (layers.buffer == NULL)
 	{
 		return 0;
 	}
 	pAxis = (CONST FLOAT*)layers.buffer;
-	fAxis = pAxis[dwLayer - 1];							// 层号合法域由调用方保证(本类不做边界处理)
-	// 对比槽: 远端法(轴位置空间); 其余非附属槽位: 本层表面色
+	fAxis = pAxis[dwLayer - 1];
 	if (eSlot == PROJ_SLOT_CONTRAST)
 	{
 		return AxisToColor(PushToFarEnd(fAxis, fContrastStrength));
@@ -750,9 +674,7 @@ DWORD ProjCR::Sample(DWORD dwLayer, CR_SLOT eSlot) const
 	{
 		return AxisToColor(fAxis);
 	}
-	// 悬停 / 激活: 相邻层取绘图层号的 ±1(其轴位置由表给出, 方向反射已在建表时完成)
 	dwNearLayer = (eSlot == PROJ_SLOT_HOVER) ? (dwLayer + 1) : (dwLayer - 1);
-	// 端点层缺该侧相邻层(顶层 +1 / 底层 −1) ⇒ 取回本层 ⇒ 两者色差为 0
 	if (dwNearLayer < 1)
 	{
 		dwNearLayer = 1;
@@ -761,7 +683,6 @@ DWORD ProjCR::Sample(DWORD dwLayer, CR_SLOT eSlot) const
 	{
 		dwNearLayer = dwLayers;
 	}
-	// 先取两层表面色(各自取整), 再按两者色差的比例混合
 	crSurf = AxisToColor(fAxis);
 	crNear = AxisToColor(pAxis[dwNearLayer - 1]);
 	return BlendColor(crSurf, crNear, SLOT_OFFSET_RATIO);
@@ -771,16 +692,13 @@ DWORD ProjCR::Sample(DWORD dwLayer, CR_SLOT eSlot) const
 // 描述: 取两个绘图层之间的边框色(表面色取中后复用对比槽的远端法)
 DWORD ProjCR::SampleBorder(DWORD dwLayerA, DWORD dwLayerB) const
 {
-	// 变量声明区
 	CONST FLOAT* pAxis = NULL;
 	FLOAT fMix = 0.0f;
-	// 未构造成功 ⇒ 返回 0(同 Sample 说明)
 	if (layers.buffer == NULL)
 	{
 		return 0;
 	}
 	pAxis = (CONST FLOAT*)layers.buffer;
-	// 取中在轴位置空间进行 ⇒ 参数天然对称(与两层的先后次序无关)
 	fMix = (pAxis[dwLayerA - 1] + pAxis[dwLayerB - 1]) * 0.5f;
 	return AxisToColor(PushToFarEnd(fMix, fBorderStrength));
 }
@@ -813,18 +731,15 @@ VOID ProjCR::SetDirection(SAMPLE_DIRECTION eDirection)
 // 描述: 设置层数(先重校验采样函数, 再换块并重算; 失败则沿用旧值)
 BOOL ProjCR::SetLayers(DWORD dwLayers)
 {
-	// 变量声明区
 	BufferInfo info{ nullptr, 0 };
 	if (dwLayers < 2)
 	{
 		return FALSE;
 	}
-	// 新层数改变了采样函数的被校验点集 ⇒ 必须先按新层数重校验(失败则旧值原样保留)
 	if (IsSampleFuncValid(pfnSample, dwLayers) == FALSE)
 	{
 		return FALSE;
 	}
-	// 先申请新表: 申请失败也不破坏旧状态
 	info = AllocLayers(dwLayers);
 	if (info.buffer == NULL)
 	{
@@ -934,7 +849,6 @@ ProjCR::SampleFunc ProjCR::GetSampleFunc() const
 FLOAT ProjCR::GetAxis(DWORD dwLayer) const
 {
 	CONST FLOAT* pAxis = NULL;
-	// 未构造成功 ⇒ 返回 0(同 Sample 说明)
 	if (layers.buffer == NULL)
 	{
 		return 0.0f;

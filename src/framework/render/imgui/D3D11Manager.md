@@ -9,8 +9,7 @@
 D3D11 / DXGI, 不持有窗口过程、不参与帧流程编排(帧流程归 `ImGuiHost`), 也不 include 任何 ImGui 头。
 构造后须先 `Initialize` 成功, 其余渲染接口才可用。
 
-2026-10-22 起本模块自 `src\common\` 归位到 `src\framework\render\imgui\`(与 `ImGuiHost` 平铺): 只改路径与
-include 前缀, 类的定义、成员布局、函数实现与依赖均未变; 唯一包含方是同目录的 `ImGuiHost`。
+本模块的唯一包含方是同目录的 `ImGuiHost`。
 
 本模块包含以下编程接口:
 

@@ -1,15 +1,6 @@
-// ================================
-// 文件: AllocatorHub.h
-// 描述: 会话分配器持有处 —— 应用统一线性分配器(Arena)与小对象池(MemPool)的建立、持有与
-//   分配原语。
-// ================================
 #pragma once
 #include "framework/base/mem/MemoryManager.h"
 
-// ================================
-// 命名空间: AllocatorHub
-// 描述: 会话分配器的持有与分配原语(进程级单例语义; 与 GenUIEditor / SelectionOverlay 同风格)
-// ================================
 namespace AllocatorHub
 {
 	// 函数: Init

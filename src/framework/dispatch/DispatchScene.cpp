@@ -1,49 +1,25 @@
-// ================================
-// 文件: DispatchScene.cpp
-// 描述: Dispatch 的场景实现切片 —— 会话分配器建立 / 成员块与配置分配 / 布局来源分派(缺省加载链 ·
-//   内存缓冲 · 布局模型 · 布局对象数组 · 延迟装配) / 布局槽装配 / 文档解析 / 展开布局对象 /
-//   几何解算 / 位置定稿 / 自证日志 / 释放链。
-// 说明: 本文件只实现 Dispatch 的私有静态函数(LoadScene / UnloadScene / 布局槽辅助), 不对外暴露任何类或函数;
-//   装配算式与多文档应用的条目装配同法, 此处是"布局槽 + 无文档条目"的形态。
-//   项目身份(缺省文档名 / 覆盖文档名的环境变量名 / 自动退出的环境变量名)一律取自
-//   DispatchConfig 在成员块里的副本 ⇒ 本文件不含任何项目身份常量。
-// ================================
-
-// ================================
-// 区域: 文件包含区
-// ================================
 #include <windows.h>
 #include <new>
 #include <stdio.h>
-#include <string.h>			// memcpy(内存缓冲来源的整体复制)
+#include <string.h>
 
 #include "framework/dispatch/Dispatch.h"
-#include "framework/base/mem/AllocatorHub.h"		// 会话分配器(线性分配器 + 小对象池)
-#include "framework/dispatch/ResourceLoader.h"		// exe 目录与路径拼接
-#include "framework/base/ControlSpec.h"		// 事件名约定(委托父容器)与控件类型
-#include "framework/layout/GeometrySolver.h"	// 几何解算与参考量换算
-#include "framework/layout/LayoutBuilder.h"	// 中间态节点 → 布局对象展开
-#include "framework/layout/LayoutSolver.h"	// 读方向解析器(JSON / bin)
+#include "framework/base/mem/AllocatorHub.h"
+#include "framework/dispatch/ResourceLoader.h"
+#include "framework/base/ControlSpec.h"
+#include "framework/layout/GeometrySolver.h"
+#include "framework/layout/LayoutBuilder.h"
+#include "framework/layout/LayoutSolver.h"
 
-// ================================
-// 区域: 文件内常量区
-// ================================
-constexpr size_t DISPATCH_ARENA_SIZE = 32 * 1024 * 1024;	// 会话线性分配器容量(单布局场景 ⇒ 远小于多文档应用)
-constexpr size_t ENV_NAME_CAPACITY = 64;			// 环境变量名缓冲容量(含结尾 NUL)
-constexpr DWORD DISPATCH_SLOT_INIT = 8;			// 布局槽数组初始容量(延迟装配按枚提交 ⇒ 按需扩容)
-constexpr DWORD DISPATCH_SLOT_STEP = 8;			// 布局槽数组扩容步进(线性分配器不回收旧块 ⇒ 步进取中)
-constexpr DWORD DISPATCH_MEM_MAX = 8 * 1024 * 1024;	// 内存缓冲来源的字节上限(bin / JSON 文档远小于此值)
+constexpr size_t DISPATCH_ARENA_SIZE = 32 * 1024 * 1024;
+constexpr size_t ENV_NAME_CAPACITY = 64;
+constexpr DWORD DISPATCH_SLOT_INIT = 8;
+constexpr DWORD DISPATCH_SLOT_STEP = 8;
+constexpr DWORD DISPATCH_MEM_MAX = 8 * 1024 * 1024;
 
-// ================================
-// 区域: 文件内函数声明区
-// ================================
 // 函数: ReleaseOwnedLayout
 // 描述: 回收一枚归调度层所有的布局对象(控件缓冲回池 → 析构; 不归还分配器内存)
 static VOID ReleaseOwnedLayout(Layout* pLayout);
-
-// ================================
-// 区域: 场景装配实现区
-// ================================
 
 // 函数: ReleaseOwnedLayout
 // 描述: 回收一枚归调度层所有的布局对象(控件缓冲回池 → 析构; 不归还分配器内存)
@@ -59,12 +35,6 @@ static VOID ReleaseOwnedLayout(Layout* pLayout)
 
 // 函数: MakeBinName
 // 描述: 由文档名派生同名 bin 名(扩展名替换为 .bin; 无扩展名时追加)
-// 参数:
-//		IN	docName:	文档文件名(如 Kanat.json)
-//		OUT	szBin:		输出缓冲
-//		IN	cbBin:		输出缓冲字节数(含结尾 NUL)
-// 返回:
-//		LPCSTR: 成功返回 szBin, 失败返回 NULL
 static LPCSTR MakeBinName(LPCSTR docName, LPSTR szBin, size_t cbBin)
 {
 	if (docName == NULL || szBin == NULL || cbBin == 0)
@@ -79,9 +49,8 @@ static LPCSTR MakeBinName(LPCSTR docName, LPSTR szBin, size_t cbBin)
 	}
 	if (docName[cbName] != '\0')
 	{
-		return NULL;		// 名过长: 失败, 不静默截断
+		return NULL;
 	}
-	// 找最后一个扩展名分隔点(只认文件名内的 '.', 不跨越目录分隔符)
 	size_t cbDot = cbName;
 	for (size_t i = cbName; i > 0; i--)
 	{
@@ -111,12 +80,6 @@ static LPCSTR MakeBinName(LPCSTR docName, LPSTR szBin, size_t cbBin)
 
 // 函数: ResolveDocPath
 // 描述: 按加载链解析布局文档路径(同名 bin 优先, 其次文档名本身)
-// 说明: 形态由解析器按内容嗅探判定(见 LayoutSolver::LoadLayoutsAuto), 与扩展名无关;
-//   bin 不存在时退回文档名本身(通常是工程源 JSON)。
-// 参数:
-//		IN	docName:	文档文件名
-// 返回:
-//		LPCSTR: 命中路径(内存池串); 目录解析失败返回 NULL
 static LPCSTR ResolveDocPath(LPCSTR docName)
 {
 	LPCSTR lpszDoc = NULL;
@@ -125,7 +88,6 @@ static LPCSTR ResolveDocPath(LPCSTR docName)
 	{
 		return lpszDoc;
 	}
-	// 第 1 级: 同名 .bin(构建期 tools\json2bin.py 生成的形态)
 	if (MakeBinName(docName, szBin, sizeof(szBin)) != NULL)
 	{
 		LPCSTR lpszBin = ResourceLoader::GetFilePath(szBin);
@@ -134,7 +96,6 @@ static LPCSTR ResolveDocPath(LPCSTR docName)
 			lpszDoc = lpszBin;
 		}
 	}
-	// 第 2 级: 文档名本身(JSON 形态)
 	if (lpszDoc == NULL)
 	{
 		lpszDoc = ResourceLoader::GetFilePath(docName);
@@ -142,15 +103,10 @@ static LPCSTR ResolveDocPath(LPCSTR docName)
 	return lpszDoc;
 }
 
-// ================================
-// 区域: 布局槽实现区
-// ================================
-
 // 函数: ReserveSlots
 // 描述: 保证槽数组至少容纳指定数量(不足时按步进扩容; 旧块随会话分配器整体释放)
 BOOL Dispatch::ReserveSlots(DWORD dwCapacity)
 {
-	// 变量声明区(避免 goto 跳过变量声明)
 	BOOL bRet = FALSE;
 	DWORD dwWant = 0;
 	BufferInfo bufSlots{};
@@ -167,7 +123,6 @@ BOOL Dispatch::ReserveSlots(DWORD dwCapacity)
 	{
 		return bRet;
 	}
-	// 1. 目标容量: 自当前容量起按步进递增(空数组从初始容量起)
 	dwWant = (data->dwSlotCapacity > 0) ? data->dwSlotCapacity : DISPATCH_SLOT_INIT;
 	while (dwWant < dwCapacity)
 	{
@@ -177,19 +132,16 @@ BOOL Dispatch::ReserveSlots(DWORD dwCapacity)
 	{
 		dwWant = DISPATCH_SLOT_MAX;
 	}
-	// 2. 新块取自会话分配器(旧块不回收, 随会话分配器整体释放)
 	bufSlots = AllocatorHub::GetArena()->Allocate(sizeof(LayoutSlot) * dwWant);
 	if (bufSlots.buffer == NULL || bufSlots.size < sizeof(LayoutSlot) * dwWant)
 	{
 		return bRet;
 	}
 	pNew = (LayoutSlot*)bufSlots.buffer;
-	// 零初始化逐槽执行(槽内含 AutoSize 值类型 ⇒ 不按字节清零, 走默认构造)
 	for (DWORD i = 0; i < dwWant; i++)
 	{
 		pNew[i] = LayoutSlot{};
 	}
-	// 3. 逐槽迁移(槽结构只含值与内嵌值类型, 浅拷贝安全)
 	for (DWORD i = 0; i < data->dwSlotCount; i++)
 	{
 		pNew[i] = data->pSlots[i];
@@ -211,7 +163,6 @@ BOOL Dispatch::ResetSlots()
 	for (DWORD i = 0; i < data->dwSlotCount; i++)
 	{
 		LayoutSlot& slot = data->pSlots[i];
-		// 1. 归本层所有的布局对象: 控件缓冲回池 → 析构(借用者只清指针, 所有权归调用方)
 		if (slot.pLayout != NULL && slot.bOwned != FALSE)
 		{
 			ReleaseOwnedLayout(slot.pLayout);
@@ -261,7 +212,6 @@ BOOL Dispatch::AppendSlot(Layout* pLayout, CONST AutoSize& ref, BOOL bOwned, BOO
 // 描述: 整体替换布局槽(先清空), 逐枚接管调用方给出的布局对象(不取得所有权)
 BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD dwCount, BOOL bFirstOnly)
 {
-	// 变量声明区(避免 goto 跳过变量声明)
 	DWORD dwValid = 0;
 	DWORD dwWndW = 0;
 	DWORD dwWndH = 0;
@@ -274,8 +224,6 @@ BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD
 		Log("布局提交失败: 数量非法(%u, 允许 1..%u)\n", (unsigned)dwCount, (unsigned)DISPATCH_SLOT_MAX);
 		return FALSE;
 	}
-	// 1. 入参校验: 空对象与空布局一律拒绝(不静默取用槽位); 借用对象不得与"归本层所有"的现有布局重叠
-	//    (重置会析构归属槽的布局 ⇒ 随后入槽即悬空)
 	for (DWORD i = 0; i < dwCount; i++)
 	{
 		if (ppLayouts[i] == NULL || ppLayouts[i]->GetTotalNum() == 0)
@@ -292,7 +240,6 @@ BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD
 			}
 		}
 	}
-	// 2. 清空现有槽后逐枚接管: 首枚可见, 其余按"默认渲染首枚"的口径先隐藏
 	if (!ResetSlots())
 	{
 		return FALSE;
@@ -306,7 +253,6 @@ BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD
 			return FALSE;
 		}
 	}
-	// 3. 首枚窗口几何: 优先取窗口件(控件)的像素尺寸, 缺失时回退到参考尺寸的窗口量
 	{
 		CtrlInfo* pWnd = ppLayouts[0]->GetLayoutBase(CTRL_TYPE_WND);
 		if (pWnd != NULL && pWnd->size.x > 0.0f && pWnd->size.y > 0.0f)
@@ -324,7 +270,6 @@ BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD
 		data->dwWndW = dwWndW;
 		data->dwWndH = dwWndH;
 	}
-	// 4. 结构件自检(只诊断不拒绝): 结构件缺失或窗口件尺寸为零的布局在渲染期被静默跳过
 	for (DWORD i = 0; i < dwCount; i++)
 	{
 		if (ppLayouts[i]->IsInvalid() == FALSE)
@@ -336,32 +281,24 @@ BOOL Dispatch::UseLayouts(Layout* CONST* ppLayouts, CONST AutoSize* pRefs, DWORD
 	return TRUE;
 }
 
-// ================================
-// 区域: 模型装配实现区
-// ================================
-
 // 函数: ApplyWndGeometry
 // 描述: 按布局参考参数推导首枚窗口几何与该布局的参考尺寸(AutoSize)
 BOOL Dispatch::ApplyWndGeometry(CONST RefSize& refSize, AutoSize& refOut, DWORD* pdwWndW, DWORD* pdwWndH)
 {
-	// 变量声明区(避免 goto 跳过变量声明)
 	DWORD dwWndW = 0;
 	DWORD dwWndH = 0;
 	DWORD dwBase = 0;
 	INT nMode = 0;
-	// 1. 基准 = autosize 模式量(无外部宿主语境 ⇒ 窗口类模式按屏兜底)
 	nMode = GeometrySolver::AutoModeIndex(refSize.mode);
 	dwBase = GeometrySolver::EntryBasePx(nMode);
 	if (dwBase < 1)
 	{
 		dwBase = 1;
 	}
-	// 2. 客户区像素 = 千分比 x 基准 / 1000(下限 16px)
 	dwWndW = (DWORD)((unsigned __int64)dwBase * (DWORD)refSize.width / 1000);
 	dwWndH = (DWORD)((unsigned __int64)dwBase * (DWORD)refSize.height / 1000);
 	if (dwWndW < 16) { dwWndW = 16; }
 	if (dwWndH < 16) { dwWndH = 16; }
-	// 3. 参考尺寸(窗口化): 窗口宽高取上一步的客户区像素
 	{
 		AutoSize::SizeInfo<DWORD> si = GeometrySolver::EntryRefSizeInfo(refSize, dwBase, dwWndW, dwWndH);
 		refOut = AutoSize::CreateByFixedSize(si, (AutoSize::AutoSizeMode)nMode);
@@ -375,7 +312,6 @@ BOOL Dispatch::ApplyWndGeometry(CONST RefSize& refSize, AutoSize& refOut, DWORD*
 // 描述: 从布局模型逐枚展开布局对象并解算几何(前 dwWant 枚; 产物归调度层所有)
 BOOL Dispatch::BuildFromModel(CONST FileMidState& state, DWORD dwWant)
 {
-	// 变量声明区(避免 goto 跳过变量声明)
 	BOOL bRet = FALSE;
 	DWORD dwTotal = 0;
 	DWORD dwUse = 0;
@@ -389,7 +325,6 @@ BOOL Dispatch::BuildFromModel(CONST FileMidState& state, DWORD dwWant)
 		Log("场景装配失败: 布局模型不含布局\n");
 		goto END;
 	}
-	// 1. 装配枚数 = min(模型布局数, 窗口数): 单窗口模式仍只用首枚(与既有行为一致)
 	dwUse = (dwTotal < dwWant) ? dwTotal : dwWant;
 	if (dwUse < dwTotal)
 	{
@@ -406,7 +341,6 @@ BOOL Dispatch::BuildFromModel(CONST FileMidState& state, DWORD dwWant)
 			Log("场景装配失败: 第 %u 枚布局不含可用布局信息\n", (unsigned)i);
 			goto END;
 		}
-		// 2. 参考尺寸与窗口几何(首枚的窗口像素记进成员块, 供建窗自证与 GetWndRect 使用)
 		if (!ApplyWndGeometry(pNode->info->refSize, ref,
 			(i == 0) ? &data->dwWndW : NULL, (i == 0) ? &data->dwWndH : NULL))
 		{
@@ -416,14 +350,12 @@ BOOL Dispatch::BuildFromModel(CONST FileMidState& state, DWORD dwWant)
 		{
 			data->refSize = pNode->info->refSize;
 		}
-		// 3. 展开布局对象(线性只读展开态: 单窗口无增删 ⇒ 不需要链式储存)
 		pLayout = LayoutBuilder::BuildLayoutFromNode(pNode, FALSE);
 		if (pLayout == NULL)
 		{
 			Log("场景装配失败: 第 %u 枚布局对象展开失败(含不支持控件或分配失败)\n", (unsigned)i);
 			goto END;
 		}
-		// 4. 逐控件解算像素几何 —— 控件对象只持像素几何, 其值 = 中间态元素规格(系数 + 偏移)的解析产物
 		{
 			AutoSize::SizeInfo<FLOAT> refF = ref.GetSizeInfo<FLOAT>();
 			DWORD dwIndex = 0;
@@ -434,17 +366,13 @@ BOOL Dispatch::BuildFromModel(CONST FileMidState& state, DWORD dwWant)
 				{
 					GeometrySolver::ApplySpecGeometry(*pCtrl, pElem->data, refF);
 				}
-				// 元素规格缺失 ⇒ 保持现状像素, 索引照常推进
 			}
 		}
-		// 5. 坐标推导: 有效坐标 = 声明坐标 + 父链声明坐标之和(结构件不作父基; 见 Layout::DeriveCtrlPositions)
 		pLayout->DeriveCtrlPositions();
-		// 6. 窗口位置记录: 由声明位置解算(声明 = (-1,-1) 随机 / 在屏内直用 / 越屏降级随机; 见 ResolveWndPos)
 		{
 			CtrlInfo* pWnd = pLayout->GetLayoutBase(CTRL_TYPE_WND);
 			GeometrySolver::ResolveWndPos(pWnd);
 		}
-		// 7. 入槽(归本层所有: Release / 替换时由 ResetSlots 回收)
 		if (!AppendSlot(pLayout, ref, TRUE, TRUE, FALSE))
 		{
 			ReleaseOwnedLayout(pLayout);
@@ -503,16 +431,10 @@ DWORD Dispatch::CountBoundCtrls()
 	return dwBound;
 }
 
-// ================================
-// 区域: 场景载入与释放实现区
-// ================================
-
 // 函数: LoadScene
 // 描述: 建立会话分配器与成员块, 并按布局来源装配场景(缺省加载链 / 内存缓冲 / 布局模型 /
-//   布局对象数组 / 延迟装配), 完毕后打印来源与场景自证
 BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 {
-	// 变量声明区(避免 goto 跳过变量声明)
 	BOOL bRet = FALSE;
 	Arena* arena = NULL;
 	MemPool* pool = NULL;
@@ -522,10 +444,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 	LPCSTR lpszDocPath = NULL;
 	CONST FileMidState* pModel = NULL;
 
-	// 1. 会话分配器(线性分配器 + 小对象池)与三个领域分配器注入
-	//    注: 成员块 / 中间态块 / 布局对象 / 控件缓冲分别取自这几处 ⇒ 注入必须早于任何分配
-	//    注: 调用方已预先建立会话分配器(布局对象在 Init 之前构建的场景)时复用, 不重建 ——
-	//        重建会令先前构建的布局与其控件缓冲整体悬空
 	if (AllocatorHub::GetArena() == NULL && !AllocatorHub::Init(DISPATCH_ARENA_SIZE))
 	{
 		Log("场景载入失败: 会话分配器建立失败\n");
@@ -533,7 +451,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 	}
 	arena = AllocatorHub::GetArena();
 	pool = AllocatorHub::GetSmallPool();
-	// 2. 成员块: 从线性分配器取内存并 placement new(Release 时显式析构; 内存随会话分配器整体释放)
 	bufData = arena->Allocate(sizeof(DispatchData));
 	if (bufData.buffer == NULL || bufData.size < sizeof(DispatchData))
 	{
@@ -541,8 +458,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		goto END;
 	}
 	data = new (bufData.buffer) DispatchData();
-	// 2-bis. 配置复制: 项目身份字符串与运行开关进成员块(调度层不含项目身份常量 ⇒ 身份只来自配置)
-	//    注: 文档名可为空(布局模型 / 布局对象数组 / 延迟装配三种来源不需要文档)
 	if (cfg.szDocName != NULL)
 	{
 		lstrcpynA(data->szDocName, cfg.szDocName, MAX_PATH);
@@ -558,10 +473,9 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 	data->dwWndCount = (cfg.dwWndCount > 0) ? cfg.dwWndCount : 1;
 	data->bDarkFollowSystem = (cfg.bDarkFollowSystem != FALSE) ? TRUE : FALSE;
 	data->bDarkMode = FALSE;
-	LayoutModel::SetAllocators(arena, pool);	// 中间态的元素块 / 布局块
-	Layout::SetAllocators(arena, pool);		// 布局对象 / 控件数组 / 链节点
-	ProjCR::SetAllocators(arena, pool);		// 投影配色的轴位置表(宿主创建配色前注入)
-	// 3. 文档名解析: 缺省名取自配置, 可由配置指定的环境变量覆盖(多范例共用同一 exe)
+	LayoutModel::SetAllocators(arena, pool);
+	Layout::SetAllocators(arena, pool);
+	ProjCR::SetAllocators(arena, pool);
 	{
 		CHAR szEnvDoc[MAX_PATH]{};
 		DWORD dwDocLen = 0;
@@ -571,23 +485,19 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		}
 		if (dwDocLen > 0 && dwDocLen < (DWORD)MAX_PATH)
 		{
-			lstrcpynA(data->szDocName, szEnvDoc, MAX_PATH);		// 已设置 / 取值合法 ⇒ 覆盖缺省名
+			lstrcpynA(data->szDocName, szEnvDoc, MAX_PATH);
 		}
 	}
-	// 4. exe 目录缓存(目录缓存的串取自线性分配器 ⇒ 必须在分配器建立之后)
 	ResourceLoader::Init();
-	// 5. 布局槽数组初始容量(全部来源共用; 延迟装配按枚提交 ⇒ 之后按需扩容)
 	if (!ReserveSlots(DISPATCH_SLOT_INIT))
 	{
 		Log("场景载入失败: 布局槽分配失败\n");
 		goto END;
 	}
-	// 6. 按来源装配 ----------------------------------------------------------------
 	switch (source.kind)
 	{
 	case LAYOUT_SOURCE_DEFAULT:
 		{
-			// 6-a. 缺省加载链: 同名 bin 优先, 其次文档名本身(形态由解析器按内容嗅探)
 			Log("布局来源: 缺省加载链\n");
 			lpszDocPath = ResolveDocPath(data->szDocName);
 			if (lpszDocPath == NULL)
@@ -612,8 +522,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		break;
 	case LAYOUT_SOURCE_MEMORY:
 		{
-			// 6-b. 内存缓冲: 复制进会话分配器并补结尾符(JSON 解析按 C 串读), 再按内容嗅探分派;
-			//      解析失败不视为初始化失败 ⇒ 回退缺省加载链
 			BOOL bParsed = FALSE;
 			Log("布局来源: 内存缓冲(%u 字节)\n", (unsigned)source.cbMemSize);
 			if (source.pMemData != NULL && source.cbMemSize > 0 && source.cbMemSize <= DISPATCH_MEM_MAX)
@@ -665,7 +573,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		break;
 	case LAYOUT_SOURCE_MODEL:
 		{
-			// 6-c. 布局模型: 直接展开(不再解析文档; 模型按借用处理, 所有权归调用方)
 			Log("布局来源: 布局模型\n");
 			if (source.pModel == NULL || LayoutModel::LayoutCount(*source.pModel) == 0)
 			{
@@ -678,7 +585,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		break;
 	case LAYOUT_SOURCE_LAYOUTS:
 		{
-			// 6-d. 布局对象数组: 直接使用(不解析文档、不重算几何); 首枚可见, 其余由业务代码打开
 			Log("布局来源: 布局对象数组(%u 枚)\n", (unsigned)source.dwLayoutCount);
 			if (!UseLayouts(source.ppLayouts, source.pRefs, source.dwLayoutCount, TRUE))
 			{
@@ -690,19 +596,16 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		break;
 	case LAYOUT_SOURCE_DEFERRED:
 		{
-			// 6-e. 延迟装配: 不提交真实布局, 只建立会话基础设施; 布局由业务代码经 AttachLayouts / AddLayout 提交
 			Log("布局来源: 延迟装配(待业务代码提交)\n");
 			lpszDocPath = "(延迟装配)";
 		}
 		break;
 	default:
 		{
-			// 判别位非法(枚举被越界赋值) ⇒ 拒绝, 不静默按延迟装配处理
 			Log("场景载入失败: 未知的布局来源(%d)\n", (int)source.kind);
 			goto END;
 		}
 	}
-	// 7. 模型路径的统一装配(缺省 / 内存 / 模型三支共用)
 	if (pModel != NULL)
 	{
 		if (!BuildFromModel(*pModel, data->dwWndCount))
@@ -710,7 +613,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 			goto END;
 		}
 	}
-	// 8. 场景自证(仅在已装配布局时打印; 延迟装配在业务代码提交后另行自证)
 	if (data->dwSlotCount == 0)
 	{
 		bRet = TRUE;
@@ -732,9 +634,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 			(lpszLayoutName != NULL) ? lpszLayoutName : "(未命名)",
 			(size_t)CountTotalCtrls(), data->dwWndW, data->dwWndH);
 	}
-	// 9. 事件绑定自证: 统计已绑定处理器的控件数, 以及"委托父容器"的解析结果
-	//     客观回答"事件是否已接到框架侧解析器与控件上"(绑定表稀疏 ⇒ 其余控件无响应);
-	//     委托者的事件由父容器的事件提供 ⇒ 其处理器非空即证明委托已在装配期解析到落点
 	{
 		DWORD dwBound = 0;
 		DWORD dwEntrust = 0;
@@ -762,7 +661,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 				}
 			}
 		}
-		// 布局模型缺失(纯布局对象来源)时无法按 event 声明统计委托父容器 ⇒ 该分支只报已绑定数
 		if (pModel == NULL)
 		{
 			Log("事件绑定: %u 枚控件已绑定处理器(无布局模型, 委托父容器计数不适用)\n", (unsigned)dwBound);
@@ -773,8 +671,6 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 				(unsigned)dwBound, (unsigned)dwEntrust, (unsigned)dwResolved);
 		}
 	}
-	// 10. 层次自证: 逐枚打印控件层次(控件ID=层), 供核对"层序按 parentID 链推导"的结果
-	//     判据: 结构件恒 0; 其余 = 父控件层次 + 自身类型步进(无父 / 父缺失 ⇒ 以窗口底档 0 为基)
 	{
 		Layout* pFirst = data->pSlots[0].pLayout;
 		Log("控件层次:");
@@ -785,11 +681,9 @@ BOOL Dispatch::LoadScene(CONST DispatchConfig& cfg, CONST LayoutSource& source)
 		}
 		printf("\n");
 	}
-	// 11. 坐标自证: 逐枚打印有效坐标(控件ID=x,y), 供核对"内容控件坐标 = 声明坐标 + 父链声明坐标之和"
-	//     判据: 结构件不受影响(WND = 桌面位置 / TITLE / CNTR = 窗口本地); 内容控件含 CNTR 的原点偏移
 	{
 		Layout* pFirst = data->pSlots[0].pLayout;
-		INT nOffset = 0;			// 有效坐标与声明坐标不同的枚数(= 真正吃到父链偏移的控件数)
+		INT nOffset = 0;
 		Log("控件坐标:");
 		for (size_t i = 0; i < pFirst->GetTotalNum(); i++)
 		{
@@ -817,14 +711,12 @@ END:
 // 描述: 释放场景资源(布局槽与布局对象 → 解析器 → 成员块显式析构 → 领域分配器解绑 → 会话分配器)
 VOID Dispatch::UnloadScene()
 {
-	// 1. 布局槽: 归调度层所有的布局对象先回收控件缓冲再析构(借用者只清指针); 槽数组随分配器释放
 	if (data != NULL)
 	{
 		ResetSlots();
 		data->pSlots = NULL;
 		data->dwSlotCapacity = 0;
 	}
-	// 2. 解析器显式析构(内存随线性分配器整体释放 ⇒ 不单独回收)
 	if (data != NULL && data->pSolver != NULL)
 	{
 		data->pSolver->~LayoutSolver();
@@ -834,17 +726,14 @@ VOID Dispatch::UnloadScene()
 	{
 		data->bReady = FALSE;
 	}
-	// 3. 领域分配器解绑(此后任何分配一律失败, 不再静默取旧池)
 	Layout::SetAllocators(NULL, NULL);
 	LayoutModel::SetAllocators(NULL, NULL);
 	ProjCR::SetAllocators(NULL, NULL);
-	// 4. 成员块显式析构并置空(内存属会话分配器 ⇒ 不单独回收)
 	if (data != NULL)
 	{
 		DispatchData* pData = data;
 		data = NULL;
 		pData->~DispatchData();
 	}
-	// 5. 会话分配器整体释放(中间态 / 布局对象 / 池块随之失效)
 	AllocatorHub::Release();
 }
