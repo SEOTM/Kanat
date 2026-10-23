@@ -32,7 +32,7 @@
 | 内存 | 所有权明确、成对释放；会话内存取自 `Arena` / `MemPool` |
 | 运行库 | 静态 `/MT`（Debug 为 `/MTd`） |
 
-`CMakeLists.txt` 已开启 `/utf-8 /Zc:char8_t-`、`UNICODE`、`_AMD64_` 与 C++17；新文件不需要重复这些设置。
+工程需开启 `/utf-8 /Zc:char8_t-`、`UNICODE`、`_AMD64_` 与 C++17；新文件不需要在源码内重复这些设置。
 
 ## 3. 注释约定
 
@@ -58,22 +58,19 @@
 - 文档为 UTF-8 无 BOM；中文正文用全角标点，代码与标识符用半角；
 - 文档不写超链接、不写沿革、不写“另请参阅”；
 - 每份文档末尾有且只有一个 `## 要求` 节（标头 / 实现 / 命名空间 / 依赖 / 平台 / 线程安全）；
-- 新增模块时，文档与原文件、`CMakeLists.txt` 的源文件列表同一次提交。
+- 新增模块时，文档与原文件同一次提交，并把新源文件加入你自己的构建工程。
 
 ## 5. 构建与自检
 
 提交前至少执行：
 
-```powershell
-cmake -S . -B out -G "Visual Studio 17 2022" -A x64
-cmake --build out --config Release --parallel
-```
+按 [BUILD.md](BUILD.md) 用 Visual Studio 或 `cl` 构建 Release。
 
 判据：
 
 - 0 警告、0 错误；
-- `out/Release/Kanat.exe` 与 `out/Release/Kanat.bin` 均存在；
-- 在 `out/Release` 中运行 `Kanat.exe`，退出码 0；
+- 生成 `Kanat.exe`；
+- 把 `docs/examples/Kanat.json` 复制到 exe 同目录后运行，退出码 0；
 - 改动涉及布局或控件时，核对启动日志中的控件数、层次与坐标。
 
 ## 6. 提交与合并请求
@@ -88,7 +85,7 @@ cmake --build out --config Release --parallel
 
 1. 新建 `Xxx.h` / `Xxx.cpp`（纯头文件模块可只有 `.h`）；
 2. 写 `Xxx.md`，按接口文档体例列出公开面；
-3. 在 `CMakeLists.txt` 的 `KANAT_SRC` 增加源文件；
+3. 把新源文件加入你自己的构建工程；
 4. 在所属层的文档索引或架构文档中补一行说明；
 5. 构建并运行。
 

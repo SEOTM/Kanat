@@ -1,7 +1,7 @@
 # Text files are stored with LF; binaries are kept as-is.
 * text=auto eol=lf
 
-*.nupkg binary
+*.lib binary
 *.png binary
 *.jpg binary
 *.jpeg binary

@@ -1,14 +1,11 @@
 # Build output
 out/
 *.slnx
-*.vcxproj
-*.vcxproj.filters
 *.vcxproj.user
 *.obj
 *.pdb
 *.ilk
 *.exe
-*.lib
 *.exp
 *.res
 *.bin
@@ -16,7 +13,17 @@ out/
 # IDE and local workspaces
 .vs/
 .idea/
-CMakeUserPresets.json
+
+# Local engineering project and dependencies (published tree is src/ + docs/)
+Kanat.sln
+Kanat.vcxproj
+Kanat.vcxproj.filters
+third_party/
+Kanat.json
+!docs/examples/Kanat.json
+tools/
+.github/
+.editorconfig
 
 # Temporary files
 _tmp/

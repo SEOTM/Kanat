@@ -2,14 +2,16 @@
 
 Kanat 是一个 Windows 原生的声明式界面框架。应用用一份布局文档描述界面，框架把文档解析为布局对象、解算像素几何、生成渲染路径，并把控件事件交回应用代码。框架内核不包含任何应用身份；仓库同时附带一个最小 Demo，演示如何用 Kanat 构建单窗口界面。
 
+> GitHub 发布树只保留 `src/` 与 `docs/`（另含本 README 与 `docs/LICENSE.md`）；不附带 CMake、Visual Studio 工程、第三方依赖或预编译产物。用户按 [docs/BUILD.md](docs/BUILD.md) 自行建立工程并准备依赖。
+
 ## 特性
 
-- **布局文档是唯一真源**：界面结构、控件、几何参考量与事件名都写在 JSON 中；构建期可转为二进制 `.bin`，运行期两种形态共用同一套解析器。
+- **布局文档是唯一真源**：界面结构、控件、几何参考量与事件名都写在 JSON 中；运行期同时支持 JSON 与二进制 `.bin` 两种形态。
 - **自适应几何**：每个控件的 `x` / `y` / `width` / `height` 由 8 个参考量系数加像素偏移解算；窗口尺寸变化时整体重算，不在代码里硬编码像素。
 - **渲染后端解耦**：布局渲染只依赖 `RenderApi` 与 `CtrlApi` 两张能力表。当前实现是 Dear ImGui + D3D11；替换 UI 技术时提供另一套实现并注入即可，布局与调度代码不改，控件库可按同一 `CtrlApi` 另行实现。
 - **声明式控件库**：22 种控件类型（20 种有绘制实现），父子链同时驱动绘制层次、坐标累加与事件委托。
 - **事件三段式**：文档 `event` 字段 → 应用侧绑定表 → 处理函数。框架不反向依赖应用层。
-- **自包含构建**：Dear ImGui 与 RapidJSON 随仓库提供，CMake 在配置期解包，不需要联网或包源。
+- **依赖明确**：Dear ImGui 1.92.8（Win32 / DX11 后端）与 RapidJSON 1.1.0；均由用户自行准备，版本与配置见构建指南。
 
 ## 快速开始
 
@@ -19,30 +21,28 @@ Kanat 是一个 Windows 原生的声明式界面框架。应用用一份布局�
 | :--- | :--- |
 | 系统 | Windows 10 / 11 x64 |
 | 编译器 | Visual Studio 2022（17.10+）或 Visual Studio 2026，安装“使用 C++ 的桌面开发”工作负载 |
-| 语言标准 | C++17（`CMakeLists.txt` 当前设为 17；C++20 亦可编译，见 [docs/BUILD.md](docs/BUILD.md)） |
-| CMake | 3.20 或更高 |
-| Python | 3.8+（可选；用于构建期生成 `Kanat.bin`，缺失时直接复制 JSON） |
+| 语言标准 | C++17（C++20 亦可编译，见 [docs/BUILD.md](docs/BUILD.md)） |
+| 依赖 | Dear ImGui 1.92.8（Win32 + DX11 后端）、RapidJSON 1.1.0，由用户自备 |
 
 ### 构建
 
-```powershell
-cmake -S . -B out -G "Visual Studio 17 2022" -A x64
-cmake --build out --config Release
-```
+发布包不含构建工程，需自行建立 Visual Studio 项目或直接用 `cl` 编译。最小步骤：
 
-Visual Studio 2026 把生成器改为 `"Visual Studio 18 2026"`：
+1. 新建 x64 C++ 空项目，把 `src/` 下全部 `.cpp` 加入；
+2. 加入 ImGui 源文件：`imgui.cpp`、`imgui_draw.cpp`、`imgui_tables.cpp`、`imgui_widgets.cpp`、`backends/imgui_impl_win32.cpp`、`backends/imgui_impl_dx11.cpp`；
+3. 配置：C++17、`/MT`（Debug 用 `/MTd`）、Unicode、`/utf-8 /Zc:char8_t-`；
+4. 包含目录：`src`、ImGui 根目录、ImGui `backends`、RapidJSON 的 `include` 目录（其下为 `rapidjson/`）；
+5. 链接：`d3d11.lib`、`dxgi.lib`、`dwmapi.lib`、`imm32.lib`；
+6. 生成后把 [docs/examples/Kanat.json](docs/examples/Kanat.json) 复制到 exe 同目录，命名为 `Kanat.json`。
 
-```powershell
-cmake -S . -B out -G "Visual Studio 18 2026" -A x64
-cmake --build out --config Release
-```
+完整的属性表、命令行 `cl` 示例与排障见 [docs/BUILD.md](docs/BUILD.md)。
 
 ### 运行
 
 工作目录必须是可执行文件所在目录，布局文档按 exe 同目录解析：
 
 ```powershell
-cd out\Release
+cd <exe 所在目录>
 .\Kanat.exe
 ```
 
@@ -144,10 +144,7 @@ Kanat/
 │     ├─ render/                渲染能力接口与 ImGui / D3D11 实现
 │     └─ dispatch/              调度层、场景装配、事件、资源路径
 ├─ docs/                        工程文档（架构、构建、格式、派生、体例）
-├─ third_party/                 离线依赖归档与第三方声明
-├─ tools/json2bin.py            布局文档 JSON → bin
-├─ Kanat.json                   Demo 布局文档
-├─ CMakeLists.txt               构建定义
+│  └─ examples/Kanat.json       Demo 布局文档
 └─ README.md
 ```
 
@@ -181,4 +178,4 @@ Kanat/
 
 ## 许可
 
-MIT License，见 [LICENSE](LICENSE)。第三方组件许可见 [third_party/README.md](third_party/README.md)。
+MIT License，见 [docs/LICENSE.md](docs/LICENSE.md)。Dear ImGui 与 RapidJSON 均为 MIT License，由用户自行获取。

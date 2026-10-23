@@ -3,7 +3,7 @@
 Kanat 的界面由布局文档声明。文档有两种等价形态：
 
 - **JSON**：工程源，便于阅读与编辑；
-- **bin**：`tools/json2bin.py` 生成的二进制镜像，加载更快，带 CRC32 校验。
+- **bin**：二进制镜像，加载更快，带 CRC32 校验；发布包不附带转换工具，格式见第 9 节。
 
 运行期先看同名 `.bin` 是否存在，再回退 `.json`。形态由内容嗅探：跳过 UTF-8 BOM 与空白后，首个字符是 `{` 即按 JSON 解析，否则按 bin 解析。
 
@@ -191,7 +191,7 @@ VOID Handler(VOID* obj, uint64_t oper, uint64_t param, void* data);
 
 ## 9. 二进制格式
 
-`tools/json2bin.py` 把 JSON 转成与 C++ 结构体内存镜像一致的 bin：
+bin 与 C++ 结构体的内存镜像一致：
 
 ```text
 偏移 0   校验码     uint32   CRC32（计算时本字段按 0）
@@ -318,8 +318,4 @@ JSON 解析失败、必填字段缺失或段结构非法时，整份文档拒绝
 }
 ```
 
-生成 bin：
-
-```powershell
-python tools\json2bin.py Kanat.json Kanat.bin
-```
+把该 JSON 保存为 `Kanat.json` 放在 exe 同目录即可运行。发布包不附带 JSON → bin 的转换工具；需要二进制形态时按第 9 节格式自行生成。

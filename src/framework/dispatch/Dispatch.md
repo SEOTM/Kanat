@@ -104,7 +104,7 @@ struct DispatchConfig
 
 | 成员 | 说明 |
 | --- | --- |
-| `szDocName` | 缺省布局文档名(如 `"App.json"`); 按 exe 同目录解释, 构建期由 CMake 复制。缺省加载链与内存缓冲(回退链)来源必需; 布局模型 / 布局对象数组 / 延迟装配三种来源可传 `NULL`。 |
+| `szDocName` | 缺省布局文档名(如 `"App.json"`); 按 exe 同目录解释, 构建后由工程复制。缺省加载链与内存缓冲(回退链)来源必需; 布局模型 / 布局对象数组 / 延迟装配三种来源可传 `NULL`。 |
 | `szDocEnv` | 覆盖文档名的环境变量名(如 `"APP_DOC"`); 空指针或取值为空 ⇒ 用 `szDocName`。 |
 | `szAutoCloseEnv` | 自动退出毫秒数的环境变量名(如 `"APP_AUTOCLOSE_MS"`); 空指针 ⇒ 不设自动退出。 |
 | `szLogPrefix` | 日志前缀(如 `"APP"`; 每行打印为 `[<前缀>] `)。 |
