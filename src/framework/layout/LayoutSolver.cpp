@@ -37,7 +37,7 @@ BOOL LayoutSolver::LoadLayouts(LPCSTR filename)
 {
 
 	BOOL bRet = FALSE;
-	SIZE_T size = 0;
+	DWORD size = 0;
 	HANDLE hMap = NULL;
 	LPVOID data = NULL;
 	HANDLE hFile = CreateFileA(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -62,7 +62,6 @@ BOOL LayoutSolver::LoadLayouts(LPCSTR filename)
 		goto CLOSEMAP;
 	}
 	bRet = LoadLayouts(data, size);
-UNMAP:
 	if (data != NULL)
 	{
 		UnmapViewOfFile(data);
@@ -72,7 +71,6 @@ CLOSEMAP:
 	{
 		CloseHandle(hMap);
 	}
-CLOSEFILE:
 	CloseHandle(hFile);
 END:
 	return bRet;
