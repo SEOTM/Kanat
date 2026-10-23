@@ -1,4 +1,4 @@
-#include "common/FileCodec.h"
+#include "framework/base/util/FileCodec.h"
 
 // ================================
 // 库名: FileCodec
@@ -40,15 +40,4 @@ DWORD FileCodec::Crc32Update(DWORD dwCrc, LPCVOID data, size_t cbData)
 DWORD FileCodec::Crc32Finish(DWORD dwCrc)
 {
 	return ~dwCrc;
-}
-
-// 函数: Crc32
-// 描述: 一次算完一段字节的 CRC32
-DWORD FileCodec::Crc32(LPCVOID data, size_t cbData)
-{
-	if (data == NULL)
-	{
-		return 0;
-	}
-	return Crc32Finish(Crc32Update(Crc32Begin(), data, cbData));
 }

@@ -4,7 +4,7 @@
 //   分配原语。
 // ================================
 #pragma once
-#include "common/MemoryManager.h"
+#include "framework/base/mem/MemoryManager.h"
 
 // ================================
 // 命名空间: AllocatorHub

@@ -30,68 +30,6 @@ struct BufferInfo
 };
 
 // ================================
-// 类名: SecureBuffer
-// 详见: 同目录 MemoryManager.md 的 SecureBuffer 类一节
-// ================================
-class SecureBuffer
-{
-public:
-	SecureBuffer(size_t requestedSize);
-	~SecureBuffer();
-
-	// 函数: Allocate
-	// 描述: 从安全缓冲区分配一段内存(按指针大小对齐)
-	BufferInfo Allocate(size_t size);
-
-	// 函数: Contains
-	// 描述: 判断指针是否落在本缓冲区范围内
-	BOOL Contains(LPCVOID p) const;
-
-	// 函数: Capacity
-	// 描述: 取缓冲区容量(向页大小对齐后的字节数)
-	size_t Capacity() const;
-
-	// 函数: Used
-	// 描述: 取已使用的字节数(按对齐后占用记账)
-	size_t Used() const;
-
-	// 函数: SecureZero
-	// 描述: 把区间内字节安全清零(越界或未就绪直接返回)
-	VOID SecureZero(size_t offset, size_t size);
-
-	// 函数: SecureZeroAll
-	// 描述: 把整个缓冲区安全清零
-	VOID SecureZeroAll();
-
-	// 函数: Protect
-	// 描述: 修改缓冲区的内存保护属性
-	BOOL Protect(DWORD protectFlag);
-
-	// 函数: SetReadOnly
-	// 描述: 把缓冲区设为只读
-	BOOL SetReadOnly();
-
-	// 函数: SetReadWrite
-	// 描述: 把缓冲区设为可读写
-	BOOL SetReadWrite();
-
-	// 函数: SetNoAccess
-	// 描述: 把缓冲区设为不可访问
-	BOOL SetNoAccess();
-
-private:
-	BYTE*	buffer;			// 缓冲区首址
-	size_t	capacity;		// 缓冲区的容量
-	size_t	used;			// 已使用的字节数(按对齐后占用记账)
-	size_t	alignBytes;		// 默认分配对齐字节(sizeof(void*))
-	DWORD	flagProtect;	// 当前保护标志
-
-	// 禁止拷贝
-	SecureBuffer(const SecureBuffer&) = delete;
-	SecureBuffer& operator=(const SecureBuffer&) = delete;
-};
-
-// ================================
 // 类名: Arena
 // 详见: 同目录 MemoryManager.md 的 Arena 类一节
 // ================================
@@ -120,14 +58,6 @@ public:
 	// 函数: Reset
 	// 描述: 把分配器游标复位到起点(不释放底层内存)
 	VOID Reset();
-
-	// 函数: Mark
-	// 描述: 取当前游标位置作为标记
-	size_t Mark() const;
-
-	// 函数: Rewind
-	// 描述: 把游标回退到标记位置(标记超前于当前游标时忽略)
-	VOID Rewind(size_t mark);
 
 private:
 	BYTE*	buffer;			// Arena 首址
@@ -165,10 +95,6 @@ public:
 	// 函数: Contains
 	// 描述: 判断指针是否属于本池
 	BOOL Contains(LPCVOID p) const;
-
-	// 函数: SlabCount
-	// 描述: 取当前 slab 数量
-	size_t SlabCount() const;
 
 	// 用户可请求的最大尺寸
 	static constexpr size_t MAX_SMALL_SIZE = 4096;

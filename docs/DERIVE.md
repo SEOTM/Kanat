@@ -60,8 +60,7 @@
 
 ## 5. 无需改动(随派生整体带走)
 
-`src\framework\`(59 文件 = 源 39 件 + 接口文档 20 份; 分 `base` 14 / `render` 2 / `render\imgui` 15 / `layout` 18 / `dispatch` 10) ·
-`src\common\`(15 文件 = 源 9 件 + 接口文档 5 份) ·
+`src\framework\`(74 文件 = 源 49 件 + 接口文档 25 份; 分 `base` 26 / `render` 2 / `render\imgui` 15 / `layout` 18 / `dispatch` 13) ·
 `src\Identity.{h,md}` / `src\main.{cpp,md}` ·
 `src\framework\dispatch\Dispatch.{h,cpp,md}` / `src\framework\dispatch\DispatchScene.cpp`(调度层: 派生新项目时只经
 `DispatchConfig` 注入身份与场景文档名, 结构本身随派生整体带走, 无需改实现) ·
@@ -71,16 +70,20 @@
 > (可作范本参考); 现行 `src\demo\` 共 3 文件 = 源 2 件 + 接口文档 1 份。
 
 > 计数口径(2026-10-16 第 7 轮, 2026-10-18 第 27 轮按"源 + 文档"重列, 2026-10-21 结构调整 S5 按四层重列,
-> 2026-10-22 按 `CtrlData` 并入 `CtrlBuffer` 与 `D3D11Manager` 归位复核):
-> `framework` 源 39 件 = GenUI 快照 25 件(含自 `common` 归位的 `D3D11Manager` 2 件; 原 30 件去 `Render.cpp` 等上游裁剪,
+> 2026-10-22 按 `CtrlData` 并入 `CtrlBuffer` 与 `D3D11Manager` 归位复核,
+> 2026-10-23 按 `common` 层取消复核):
+> `framework` 源 49 件 = GenUI 快照 25 件(含自 `common` 归位的 `D3D11Manager` 2 件; 原 30 件去 `Render.cpp` 等上游裁剪,
 > 并删 `CtrlData.h`) + 部件层拆分产物 2 件(`Widgets.{h,cpp}`) +
 > 首产件 7 件(`ImGuiHost.{h,cpp}` + `ImGuiRender.{h,cpp}` + `Render.h` + `LayoutRender.{h,cpp}`) +
-> 新增与归位件 5 件(`base\CtrlBuffer.{h,cpp}` + `dispatch\Dispatch.{h,cpp}` + `dispatch\DispatchScene.cpp`);
-> 接口文档 = **每模块一份**共 28 份(`framework` 20 + `common` 5 + `Identity` / `main` 2 + `demo` 1), 体例见
+> 新增与归位件 5 件(`base\CtrlBuffer.{h,cpp}` + `dispatch\Dispatch.{h,cpp}` + `dispatch\DispatchScene.cpp`) +
+> 自 `common` 归位件 10 件(2026-10-23: `base\mem\MemoryManager` / `base\mem\AllocatorHub` /
+> `base\util\FileCodec` / `base\AppEnv` / `dispatch\ResourceLoader`, 各 `.h` + `.cpp` 2 件);
+> 接口文档 = **每模块一份**共 28 份(`framework` 25 + `Identity` / `main` 2 + `demo` 1), 体例见
 > `docs\INTERFACE-DOC-STYLE.md`。全工程 81 文件 = 源 53 件 + 接口文档 28 份。
 > `Render.h` 仍是快照件(文件名不变), 但其内容已就地改造为"渲染能力接口定义"(受控漂移, 见下)。
 
-框架层原本是 GenUI 侧的**逐字节复制快照**; 上游修复不会自动进入派生项目, 同步方式见 `README.md` 第 6 节。
+框架层原本是 GenUI 侧的**逐字节复制快照**; 上游修复不会自动进入派生项目, 同步方式见本节前段的归位登记与
+`docs\EVAL-COMMON-LAYERING.md`(原 `README.md` 第 6 节已随 2026-10-22 README 重写移除)。
 派生后接口文档随源目录整体带走, 文档内的模块名 / 路径已按 `src\` 相对路径书写, 改名只需替换工程身份
 (`Identity.h` 与 `CMakeLists.txt` 顶部两变量), 无需逐份改文档。
 
@@ -132,8 +135,10 @@
 另有部件层拆分产物 `render\imgui\control\Widgets.{h,cpp,md}`、自控件库拆出的 `base\CtrlBuffer.{h,cpp,md}` 与
 归位的 `dispatch\Dispatch.{h,cpp,md}` + `DispatchScene.cpp` —— 2026-10-21 起 GenUI 侧已同名(第 43 轮反向
 吸收其九件), 派生时仍随目录整体带走; 从 GenUI 重新复制 `framework` 层时**不得覆盖或删除**这些件(整目录替换会丢件),
-且须先按 `README.md` §6 的"结构治理(2026-10-21)"重放分层(GenUI 侧仍是旧扁平路径)。
+且须先按原 `README.md` §6 的"结构治理(2026-10-21)"重放分层(GenUI 侧仍是旧扁平路径; 该节已随 2026-10-22
+README 重写移除, 现行以 `docs\CHARTER.md` 纲领十与本节为准)。
 
 另有**快照件路径归位 2 件**(`render\imgui\D3D11Manager.{h,cpp}` + 随迁接口文档, 自 `common` 移至
-`render\imgui`, 内容未改) —— 从 GenUI 重新复制 `common` 时按 `README.md` §6 的"漂移处置(2026-10-22
-D3D11Manager 归位)"处置, 否则会写回一份不在源表内的同名件。
+`render\imgui`, 内容未改) —— 从 GenUI 重新复制 `common` 时按"漂移处置(2026-10-22 D3D11Manager 归位)"
+处置, 否则会写回一份不在源表内的同名件。**2026-10-23 起 `common` 层整体取消**: 五件归位见 §5,
+从 GenUI 重新复制 `common` 时须映射到 `base\mem` / `base\util` / `base` / `dispatch`, 不得重建 `src\common\`。

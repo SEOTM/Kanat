@@ -423,7 +423,8 @@
 2. **四层单向依赖**: `base`(基础数据与控件类型)→ `render`(渲染能力契约与实现)/ `layout`(布局解算与渲染出口)
    → `dispatch`(调度编排)。两条受控例外: `layout` 可引用 `dispatch` 的两个契约头(`UIEventHandler.h` /
    `FrameEvent.h`); `dispatch` 只经 `HostApi` 访问宿主, 不引用 `ImGuiHost.h` / `imgui.h`, 也不引用 `Identity.h`
-   (身份经 `DispatchConfig` 注入)。依赖表见 `README.md` §2.1。
+   (身份经 `DispatchConfig` 注入)。依赖关系以本条为准(原指向的 `README.md` §2.1 依赖表已随
+   2026-10-22 README 重写移除)。
 3. **按技术名分目录**: 渲染契约(与 UI 库无关)留在 `render\Render.h`; 具体 UI 技术的宿主与实现按技术名收进
    `render\imgui\`, 其中宿主 `ImGuiHost` 与能力提供者(`ability\`)、控件与部件(`control\`)平级 —— 增加第二种
    渲染技术时新增同级目录, 契约与上层零改动。
@@ -500,4 +501,69 @@
 
 自证: 构建 0 警告 0 错误; 无人值守运行(1500 ms 自动退出)退出码 0, 场景载入 `Kanat.bin`, 布局 `DemoMain` /
 15 控件 / 事件绑定 2 条 / 委托已解析 1 枚, 日志前缀仍 `[DEMO]`。
+
+## 纲领十三(2026-10-22)
+
+原话:
+
+> Kanat 项目开放布局层，现在初始化调度层允许以下述几种方式传入：
+> 1. 不传递任何内容，视为使用默认的加载策略
+> 2. 传递内存 json/bin ，接收后进行解析，解析失败尝试默认加载策略
+> 3. 传递 LayoutModel 对象，直接使用
+> 4. 传递 Layout 对象数组与 AutoSize 数组，直接使用
+> 5. 传递一个标志，表示不再初始化时传入真实的布局，运行时由业务代码直接交互
+
+追问口径(用户答复原话):
+
+> 默认渲染首枚，业务段可以通过调度器控制这些布局的显示状态和嵌套状态
+
+> 最后一种方式，允许一个布局一个布局的添加。不必一次性全部提交
+
+解读(照录原话, 未另作确认):
+
+1. **入口 = `Init` 的第四段入参**: 新增 `LayoutSource`(判别位 + 载荷, 经五个工厂函数构造), `Init` 的默认实参为
+   `CreateDefault()`; 因此"不传递任何内容"就是省略该参数, 既有调用点与默认行为逐字不变。
+2. **方式 3 的"LayoutModel 对象" = 中间态 `FileMidState`**(经用户第二轮问答确认): `LayoutModel` 是纯静态工具类、
+   无实例; 可"直接使用"的模型对象只能是整份中间态。调度层据此逐枚展开, 不再解析文档。
+3. **方式 4 = 布局对象数组 + 参考尺寸数组**: 直接接管调用方已就绪的布局对象(不解析、不重算几何); **默认渲染首枚**,
+   其余由业务段经调度器打开, 并可用"嵌套状态"(= Flex 渲染, 经 `LayoutRender::RenderFlex`)把它们并入前一基座布局的窗口段。
+4. **方式 5 = 延迟装配**: `Init` 只建立会话基础设施; 布局由业务代码在运行期提交, 且**允许逐枚添加**
+   (`AddLayout`), 不必一次性全部提交; 整体替换走 `AttachLayouts`。
+
+落地(2026-10-22):
+
+| 件 | 内容 |
+| :--- | :--- |
+| `src\framework\dispatch\Dispatch.h` | 新增 `LayoutSourceKind` / `LayoutSource`(五工厂) / `Dispatch::DISPATCH_SLOT_MAX`; `Init` 增第四段入参(默认实参 = 缺省加载链); 新增 `AttachLayouts` / `AddLayout` / `SetLayoutVisible` / `SetLayoutNested` / `GetLayoutState` / `GetLayoutCount` / `GetLayoutAt` / `GetRefAt`; 成员块改为"布局槽数组"(布局对象 + 参考尺寸 + 可见性 + 嵌套 + 所有权) |
+| `src\framework\dispatch\DispatchScene.cpp` | `LoadScene` 按来源分派五支(缺省链 / 内存缓冲 / 模型 / 布局对象数组 / 延迟); 新增布局槽辅助(`ReserveSlots` / `ResetSlots` / `AppendSlot` / `UseLayouts` / `BuildFromModel` / `ApplyWndGeometry` / `CountTotalCtrls` / `CountBoundCtrls`); 会话分配器改为"已建立则复用" |
+| `src\framework\dispatch\Dispatch.cpp` | `Frame` 渲染清单按槽顺序(基座 `RenderBase` 独占窗口并开段; 嵌套 `RenderFlex` 沿用最近一次成功基座的段; 不可见跳过); 访问接口改取首槽; 提交与状态接口实现 |
+| `src\framework\dispatch\Dispatch.md` | 接口文档同步(新增枚举 / 结构 / 六个接口节; 序列表、来源分支表、所有权与时序注解) |
+| `README.md` | 演示内容与运行说明增"布局来源五式" |
+
+自证: 构建 Release / Debug 两配置 0 警告 0 错误; 无人值守默认来源退出码 0, 结构自证行(场景载入 / 事件绑定 /
+控件层次 / 控件坐标)与改前逐字符一致(仅新增"布局来源"行); 临时验证入口(不入库, 已还原 `main.cpp`)分别以
+内存缓冲(8432 字节 bin) / 布局模型 / 预建布局对象数组 / 延迟装配(逐枚 `AddLayout` 两枚 + 嵌套与可见性设置)
+四种来源运行, 退出码均为 0, 控件层次与坐标与默认来源一致。
+
+## 纲领十四(2026-10-23)
+
+原话:
+
+> 不拆，纯搬迁，但是可以删的删除
+
+口径(对 `docs\EVAL-COMMON-LAYERING.md` 待拍板项 D1–D6 的批复):
+
+1. **common 层取消(D1 = B)**: 五件全部归位 —— `MemoryManager` / `AllocatorHub` → `framework\base\mem`;
+   `FileCodec` → `framework\base\util`; `AppEnv` → `framework\base`; `ResourceLoader` → `framework\dispatch`。
+2. **一律纯搬迁(D2 = 不拆)**: 不拆 `BufferInfo.h`, 不改接口签名, 不改 `ProjCR` 的分配器注入, 不重建语义;
+   只改 include 前缀、源表与文档。
+3. **可删的死接口就地删除(D4 = B)**: `SecureBuffer` 整类、`Arena::Mark` / `Rewind`、`MemPool::SlabCount`、
+   `FileCodec::Crc32`(一次算完)、`ResourceLoader::GetExeDir` / `LoadResource` —— 全部零消费者, 删除后行为零变更。
+4. **`AppEnv` 不拆(D3 = 整件)**: 三函数整体留在一件, 落 `framework\base`(平台查询件放底座, `dispatch` 与
+   `render` 均向下引用, 不新增分层例外)。
+
+自证: 构建 Release / Debug 两配置 0 警告 0 错误; 无人值守运行(`DEMO_AUTOCLOSE_MS=1500`)退出码 0;
+结构自证行(场景载入 / 事件绑定 / 控件层次 / 控件坐标 / 字号 / 建窗几何)齐全, 控件数与坐标与改前口径一致;
+`[MAIN] 圆角实现: DWM` 一行仍在(行为未改)。落地记录见 `docs\EVAL-COMMON-LAYERING.md` §9。
+
 

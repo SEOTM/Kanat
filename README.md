@@ -3,14 +3,12 @@
 暗渠框架（Kanat）：声明式界面框架 —— 一份布局文档 → 一张布局对象 → 一条渲染路径 → 事件处理。
 本仓库同时承载**框架内核**与**随框架附带的最小 Demo 示例**：内核是暗渠框架本体，示例是"如何用暗渠框架写一个界面"的最小样本。
 
-> 沿革：本工程原名 `Demo`（GenUI 的最小演示程序），2026-10-22 正式改名 `Kanat` 并定为框架名"暗渠框架"。
-> 示例层的 Demo 语义（事件表 `DemoEvents`、`DEMO_*` 环境变量与事件名、`src\demo\` 目录）按用户口径保留不变。
 
 ## 两层结构
 
 | 层 | 目录 | 说明 |
 | :--- | :--- | :--- |
-| 框架内核 | `src\framework\` + `src\common\` | 暗渠框架本体：基础设计量、控件类型契约、控件缓冲、文本宽度、渲染能力表与 ImGui / D3D11 实现、布局对象与解算、调度层、内存管理与会话分配器、环境件、文件校验、资源与路径 |
+| 框架内核 | `src\framework\` | 暗渠框架本体：基础设计量、控件类型契约、控件缓冲、文本宽度、渲染能力表与 ImGui / D3D11 实现、布局对象与解算、调度层，以及内存设施（`base\mem`）、纯算法（`base\util`）、平台环境件（`base\AppEnv`）、资源与路径（`dispatch\ResourceLoader`） |
 | 最小 Demo 示例 | `src\demo\` + `src\main.cpp` + `Kanat.json` | 随框架附带的参考实现：两条业务事件（拖动窗口 / 事件委托）与一份单窗口布局文档 |
 
 框架内核不含任何项目身份：应用名、文档名、事件名等经 `src\Identity.h` 与 `CMakeLists.txt` 顶部两个变量注入（派生新项目见 `docs\DERIVE.md`）。
@@ -18,6 +16,9 @@
 ## 演示内容
 
 - 一份单布局文档 `Kanat.json`：结构件（窗口 / 标题栏 / 内容容器）+ 12 枚内容控件。
+- 布局来源五式：调度层初始化接受缺省加载链 / 内存缓冲（JSON 或 bin）/ 布局模型（中间态）/ 布局对象数组 / 延迟装配；
+  延迟装配可经 `AttachLayouts`（整体替换）与 `AddLayout`（逐枚追加）在运行期提交，并经 `SetLayoutVisible` /
+  `SetLayoutNested` 控制每枚布局的可见性与嵌套渲染（契约见 `src\framework\dispatch\Dispatch.md`）。
 - 标题栏按住拖动窗口：拖动事件把窗口期望坐标写进布局的窗口位置记录，渲染侧按记录结算窗口几何。
 - 事件委托：容器绑定 `DEMO_ENTRUST_PROBE`，其子按钮以 `CTRL_EVENT_ENTRUST_PARENT` 把自己的事件委托给父容器，点击到达父容器的处理函数。
 - 父子链：`parent` 字段驱动层序与坐标累加，运行日志逐枚打印层值与坐标供核对。
@@ -41,14 +42,18 @@
 cmake -S . -B out -G "Visual Studio 18 2026" -A x64
 
 # 2. 注入本地 NuGet 依赖（每次 configure 后都要重跑）
+# 注: 只替换文件末尾的 </Project> —— vcxproj 内 ProjectReference 的 <Project> 元数据同样以 </Project> 结尾,
+#     用 [string]::Replace 会一并改坏(实测 MSB3107), 故按 LastIndexOf 定位。
 $vcx = "$PWD\out\Kanat.vcxproj"
 $xml = [IO.File]::ReadAllText($vcx)
-$xml = $xml.Replace('</Project>', @"
+$item = @"
   <ItemGroup>
     <PackageReference Include="GenUI.Deps.Native"><Version>1.0.0</Version></PackageReference>
   </ItemGroup>
 </Project>
-"@)
+"@
+$idx = $xml.LastIndexOf('</Project>')
+$xml = $xml.Substring(0, $idx) + $item + $xml.Substring($idx + '</Project>'.Length)
 [IO.File]::WriteAllText($vcx, $xml, (New-Object Text.UTF8Encoding($false)))
 
 # 3. 还原并构建
@@ -75,7 +80,9 @@ cd out\Release
 .\Kanat.exe
 ```
 
-加载链：`.\Kanat.bin` 优先，其次 `.\Kanat.json`；形态由内容嗅探判定。
+加载链：`.\Kanat.bin` 优先，其次 `.\Kanat.json`；形态由内容嗅探判定。缺省来源即此加载链；其余来源
+（内存缓冲 / 布局模型 / 布局对象数组 / 延迟装配）经 `Dispatch::Init` 的 `LayoutSource` 选择，口径见
+`src\framework\dispatch\Dispatch.md`。
 
 | 环境变量 | 作用 |
 | :--- | :--- |
@@ -94,19 +101,20 @@ Kanat\
 │  ├─ main.cpp                 进程入口（取宿主表 → 调度初始化 → 宿主启动 → 主循环 → 释放）
 │  ├─ Identity.h / .md         项目身份唯一真源（应用名 / 文档名 / 环境开关）
 │  ├─ demo\                    示例层：事件绑定表 DemoEvents
-│  ├─ common\                  通用基础设施（GenUI 快照起点）
 │  └─ framework\               框架内核（GenUI 快照起点 + 本工程首产件）
-│     ├─ base\                 基础设计量、控件类型契约、控件缓冲、文本宽度
+│     ├─ base\                 基础设计量、控件类型契约、控件缓冲、文本宽度、平台环境件
+│     │  ├─ mem\               内存设施：MemoryManager（分配器）与 AllocatorHub（会话分配器）
+│     │  └─ util\              纯算法件：FileCodec（CRC32 校验）
 │     ├─ render\               渲染能力表 + ImGui 宿主 / D3D11 / 控件库 / 部件层
 │     ├─ layout\               布局对象、中间态、解析、渲染出口、几何解算
-│     └─ dispatch\             调度层：事件注入、场景装配、每帧流程、退出判据
+│     └─ dispatch\             调度层：事件注入、场景装配、每帧流程、退出判据、资源与路径
 ├─ tools\json2bin.py           构建期 bin 生成（与 GenUI 同一格式与脚本）
 ├─ Kanat.json                  布局文档（工程源）
 ├─ CMakeLists.txt              工程定义
 └─ docs\                       工程纲领、范例判据、派生清单、接口文档体例
 ```
 
-`src` 下每个源文件模块配一份接口文档（与源码同目录），共 28 份；framework 层的代码源自 GenUI 快照（已就地演进），本仓库保留单文档场景需要的最小子集。
+`src` 下每个源文件模块配一份接口文档（与源码同目录），共 28 份；framework 层的代码源自 GenUI 快照（已就地演进），本仓库保留单文档场景需要的最小子集。原 `src\common\` 层已于 2026-10-23 取消，五件全部归位 `framework`（评估见 `docs\EVAL-COMMON-LAYERING.md`）。
 
 ## 与 GenUI 的关系
 

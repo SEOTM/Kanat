@@ -104,13 +104,21 @@
 登记处: `README.md` §1 / §2 / §2.1 / §5 / §6、`docs\DERIVE.md` §5、`docs\HISTORY\2026-10-22-*.md`。
 从 GenUI 重新复制 `common` 时的三选一处置见 `README.md` §6"漂移处置(2026-10-22 D3D11Manager 归位)"。
 
+第八例例外(2026-10-23, 用户指令): **`common` 层取消(纯路径搬迁 + 死接口删除)** ——
+五件自 `src\common\` 归位: `base\mem\{MemoryManager,AllocatorHub}` · `base\util\FileCodec` ·
+`base\AppEnv` · `dispatch\ResourceLoader`; 同时删除零消费者接口(`SecureBuffer` 整类 /
+`Arena::Mark`·`Rewind` / `MemPool::SlabCount` / `FileCodec::Crc32` / `ResourceLoader::GetExeDir`·`LoadResource`)。
+路径搬迁不改接口语义; 接口缩减属受控改动(全部零消费者, 行为零变更)。
+依据 = `docs\EVAL-COMMON-LAYERING.md` 评估与 `docs\CHARTER.md` 纲领十四; 登记处: `README.md` §1 / §5、
+`docs\DERIVE.md` §5、`CMakeLists.txt` 注释。
+
 ## 3. 范例清单
 
 
 
-状态词: 规划 / 进行中 / 已落地。当前 EX-00 与 EX-10..EX-17 已落地(EX-00 = 本工程首轮形态;
+状态词: 规划 / 进行中 / 已落地。当前 EX-00 与 EX-10..EX-18 已落地(EX-00 = 本工程首轮形态;
 EX-10 = 2026-10-15 第 4 轮新增, 编号待用户确认; EX-14 = 2026-10-18 第 28 轮新增; EX-15 = 2026-10-18 第 29 轮新增;
-EX-16 = 2026-10-18 第 30 轮新增; EX-17 = 2026-10-21 第 32 轮新增)。
+EX-16 = 2026-10-18 第 30 轮新增; EX-17 = 2026-10-21 第 32 轮新增; EX-18 = 2026-10-22 第 34 轮新增)。
 
 | 编号 | 名称 | 覆盖的框架能力面 | 形态 | 状态 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -132,6 +140,7 @@ EX-16 = 2026-10-18 第 30 轮新增; EX-17 = 2026-10-21 第 32 轮新增)。
 | EX-15 | 控件层次按父链推导 | `CtrlInfo::nLayer` 由 `Layout::DeriveCtrlLayers` 按 `parentID` 链求值: 父层 + 自身类型步进(`BUTTON` / `CHECKBOX` `+1` · `RECT` / `INPUT_*` / `LIST_*` / `COMBO*` / `RENDER` / `SLIDER` `-1` · 其余 `0`); 无父 / 父缺失 / 成环 ⇒ 以窗口底档 `0` 为基; 结构件恒 `0`; **不做几何包含推导**, 层序只认声明 | 框架层模块(`ControlSpec.h` 的层次口径与 `CtrlLayerStep` + `Layout::DeriveCtrlLayers` / `GetCtrlInfoByID`)+ 布局文档的 `parent` 声明 + 运行日志的 `[DEMO] 控件层次:` 自证 | 已落地(2026-10-18 第 29 轮; 2026-10-22 移除选中标记特例) |
 | EX-16 | 控件坐标按父链累加 | 内容控件的**有效坐标(窗口本地) = 声明坐标 + 父链声明坐标之和**: 声明坐标 `CtrlInfo::posDeclared` 由几何解算写入, 有效坐标 `CtrlInfo::position` 由 `Layout::DeriveCtrlPositions` 按 `parentID` 链重算(只读声明值 ⇒ 幂等 · 与链序无关); 自指 / 成环 ⇒ 视同无父; `WND` 是桌面位置 ⇒ 不作父基也不参与累加, `TITLE` / `CNTR` 计为窗口本地坐标; 内容容器同时承担裁剪与坐标系原点 ⇒ 绘制侧(`Controls::DrawCtrl`)与命中判定把有效坐标换算成容器本地坐标, 只扣一次; 嵌套几层就累加几层(探针 t10) | 框架层模块(`ControlSpec.h` 的 `posDeclared` + `Layout::DeriveCtrlPositions` + `GeometrySolver` + `Controls::DrawCtrl` / `UpdateContext` + `LayoutRender`)+ 布局文档的 `parent` 声明 + 运行日志的 `[DEMO] 控件坐标:` 自证 | 已落地(2026-10-18 第 30 轮) |
 | EX-17 | main 胶水 + Dispatch 静态单例 | `main.cpp` 只做七步(取宿主表 `Register` → 组 `DispatchConfig` → `Dispatch::Init` → `ImGuiHost::SetFontSize(Dispatch::GetFontSize())` 登记建面字号 → `pHost->Start` → `pHost->Run` → 释放链) · `Dispatch` = 全静态单例(私有删除构造析构 + 会话分配器 arena 内的 `DispatchData` 成员块) · 事件绑定表经函数指针注入(调度层不反向依赖事件层) · 场景装配收在 `DispatchScene.cpp`(LoadScene / UnloadScene) · 每帧流程 = `Dispatch::Frame`, 退出判据 = `Dispatch::GetExitAddress()` · 投影配色与样式注入 / 无人值守参数 / 收尾自证同层 | 调度层模块(`framework\dispatch\Dispatch.{h,cpp,md}` + `framework\dispatch\DispatchScene.cpp`)+ 胶水入口(`src\main.cpp`) | 已落地(2026-10-21 第 32 轮; 结构调整 S3 归位并改名; 同日补建面字号登记) |
+| EX-18 | 布局来源五式与布局槽状态 | `Dispatch::Init` 的第四段入参 `LayoutSource` 五工厂(缺省加载链 / 内存缓冲 JSON 或 bin / 布局模型 `FileMidState` / 布局对象数组 + 参考尺寸数组 / 延迟装配) · 布局槽 = 布局对象 + 参考尺寸 + 可见性 + 嵌套状态 + 所有权 · `AttachLayouts` 整体替换、`AddLayout` 逐枚追加(运行期提交) · `SetLayoutVisible` / `SetLayoutNested` / `GetLayoutState` 控制渲染方式 · 渲染清单按槽顺序: 基座 `RenderBase` 独占窗口并开段, 嵌套 `RenderFlex` 沿用最近一次成功基座的段 | 调度层模块(`framework\dispatch\Dispatch.{h,cpp,md}` + `framework\dispatch\DispatchScene.cpp`) | 已落地(2026-10-22 纲领十三) |
 
 **承载机制**(已实现): 范例以"布局文档 + 处理器"为单位, 由本工程 exe 按 `DEMO_DOC` 环境变量选择文档
 (缺省 `Kanat.json`); 单一 exe 承载全部范例, 不为一范例建一个工程。
@@ -373,9 +382,18 @@ RG-A2 涉及 `LayoutModel`(锁定模块) —— 处置前必须按 GenUI `LOCK.m
 | 新增消费方缺口 | 无新增条目 —— 本轮按任务书做结构重组(纲领十), 不是从范例实践中发现缺口 |
 | 已消解面 | `RG-A2`(`FormatToUI` 死声明)**已消解(S4)**: 声明与 `LayoutModel.md` 条目一并删除; `RG-C4`(接口文档覆盖不足)自第 27 轮起已全消解, 本轮新增 `base\CtrlBuffer.md` 后仍**每模块一份**(共 29 份) |
 | 反向治理影响 | `RG-C7` / `RG-C8`(消费方必做装配步骤)再收一段: 调度层归 framework 后, 派生者不再复制应用层协调代码, 只改身份 + 事件表; `RG-B3`(消费方零调用的公开面)不变 |
-| 结构口径 | 目录 = `framework\{base,render,layout,dispatch}` + `render\imgui\{ImGuiHost,ability,control}`; 层间依赖规则见 `README.md` §2.1; 例外见本文件 §2 的第六例例外 |
+| 结构口径 | 目录 = `framework\{base,render,layout,dispatch}` + `render\imgui\{ImGuiHost,ability,control}`; 层间依赖规则见 `docs\CHARTER.md` 纲领十第 2 条(原 `README.md` §2.1 依赖表已随 README 重写移除); 例外见本文件 §2 的第六例例外 |
 | 快照纪律 | 本轮只搬结构不改行为(日志的场景 / 控件层次 / 控件坐标行与 S0 基线逐字符一致); GenUI 侧仍是旧扁平路径 ⇒ 从 GenUI 复制 `framework` 的处置见 `README.md` §6 的"结构治理(2026-10-21)" |
 | 口径变更 | 全工程 83 文件 = 源 54 + 接口文档 29; framework 58 = 源 38 + 文档 20; `Application` → `Dispatch`(类名与文件名), 场景切片 = `DispatchScene.cpp` |
+
+### 本轮登记(2026-10-22 第 34 轮: 布局层开放 —— 五种来源 + 布局槽状态)
+
+| 事项 | 判定 |
+| :--- | :--- |
+| 新增消费方缺口 | 方式 4 的两条真实前置条件来自本轮实测: 布局在 `Init` 之前构建时**须先打开 DPI 感知**(否则参考量按系统虚拟化屏幕推导, 整体按缩放比例偏小, 实测 2160 屏被算成 1080 ⇒ 窗口 1231x1080 变 615x540、字号 28 变 14), 且**须先注入事件绑定表**(否则展开期事件全部为空, 实测已绑定控件 3 枚变 0 枚)。两条均已写入 `Dispatch.md` 的 `LayoutSource` 注解; 属调度层契约, 未登记为反向治理条目 |
+| 反向治理影响 | `RG-B3`(消费方零调用的公开面)新增观察项: `GetLayoutAt` / `GetRefAt` / `GetLayoutState` 在本工程 Demo 中零调用(仅临时验证入口调用); 是否登记为条目待用户口径 |
+| 快照纪律 | `Dispatch.{h,cpp}` / `DispatchScene.cpp` / `Dispatch.md` 属本工程自持调度层, GenUI 侧无对应件; `common\AllocatorHub` 未改 —— "会话分配器已建立则复用"的判定写在调度层(`LoadScene` 第 1 步) |
+| 口径变更 | 场景装配由"单布局字段"改为"布局槽数组"; `GetLayout` / `GetRef` 语义收窄为首槽; 默认来源的日志仅新增一行"布局来源: 缺省加载链", 结构自证行逐字符不变 |
 
 ## 5. 反向治理的机制与纪律
 

@@ -1,9 +1,10 @@
-# AppEnv 模块 (src\common\AppEnv.h)
+# AppEnv 模块 (src\framework\base\AppEnv.h)
 
 ## 概述
 
-应用环境件:与控制台代码页、系统亮暗模式、窗口圆角相关的无状态通用原语。属于 **common 层**(最底层),
-只经 Win32 API 与 C 运行库, 不依赖工程内任何其它模块, 可被 framework / demo 任意方向引用。
+应用环境件:与控制台代码页、系统亮暗模式、窗口圆角相关的无状态通用原语。属于 **framework 层 · base**
+(2026-10-23 自 common 归位), 只经 Win32 API 与 C 运行库, 不依赖工程内任何其它模块,
+可被 framework 任意方向引用(平台查询件放在底座, 上层一律向下引用)。
 
 本模块不做窗口创建与消息处理(归 `ImGuiHost` 与宿主), 不持有任何状态; 调用方按下列接口原文使用即可。
 
@@ -165,8 +166,8 @@ VOID ApplyWindowCornerRounding(
 
 | 要求 | 值 |
 | --- | --- |
-| 标头 | `common/AppEnv.h`(`src\common\AppEnv.h`) |
-| 实现 | `src\common\AppEnv.cpp` |
+| 标头 | `framework/base/AppEnv.h`(`src\framework\base\AppEnv.h`) |
+| 实现 | `src\framework\base\AppEnv.cpp` |
 | 命名空间 | `AppEnv` |
 | 依赖 | `kernel32.dll` · `advapi32.dll` · `dwmapi.dll` · `user32.dll` · `gdi32.dll` |
 | 平台 | Windows 全版本 |

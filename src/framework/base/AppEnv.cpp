@@ -10,7 +10,7 @@
 #include <dwmapi.h>		// DWM 圆角属性(DWMWA_WINDOW_CORNER_PREFERENCE / DWMWCP_ROUND)
 #include <stdio.h>
 
-#include "common/AppEnv.h"
+#include "framework/base/AppEnv.h"
 
 // ================================
 // 区域: 接口实现区

@@ -7,7 +7,7 @@
 // 区域: 文件包含区
 // ================================
 #include <string.h>
-#include "common/AllocatorHub.h"
+#include "framework/base/mem/AllocatorHub.h"
 
 // ================================
 // 区域: 文件内静态状态

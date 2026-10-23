@@ -28,8 +28,4 @@ public:
 	// 函数: Crc32Finish
 	// 描述: 取 CRC32 的最终值(对状态取反)
 	static DWORD Crc32Finish(DWORD dwCrc);
-
-	// 函数: Crc32
-	// 描述: 一次算完一段字节的 CRC32(IEEE 802.3: 反射, 多项式 0xEDB88320, 初值 0xFFFFFFFF, 结果取反)
-	static DWORD Crc32(LPCVOID data, size_t cbData);
 };

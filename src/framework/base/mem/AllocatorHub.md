@@ -1,12 +1,13 @@
-# AllocatorHub 模块 (src\common\AllocatorHub.h)
+# AllocatorHub 模块 (src\framework\base\mem\AllocatorHub.h)
 
 ## 概述
 
 会话分配器的持有处:应用统一线性分配器(`Arena`)与小对象池(`MemPool`)的建立、持有与分配原语。
 进程级单例语义——分配器以命名空间内静态状态持有, 全进程只有一份; 调用方不持有分配器对象, 只调本模块原语。
 
-本模块属 **common 层**, 依赖 `MemoryManager` 的三个分配器类型; 不感知文档结构, 不做引用计数,
-不提供任何线程同步。分配策略 = "小对象优先走池, 超限或池分配失败回退线性分配器"。
+本模块属 **framework 层 · base · mem**(2026-10-23 自 common 归位), 依赖同目录 `MemoryManager` 的两个分配器类型;
+不感知文档结构, 不做引用计数, 不提供任何线程同步。
+分配策略 = "小对象优先走池, 超限或池分配失败回退线性分配器"。
 
 本模块包含以下编程接口:
 
@@ -116,7 +117,7 @@ Arena* GetArena();
 
 ### 注解
 
-调用方通常只在启动期取一次并自行保存, 以便直接调用 `Arena` 的 `Mark` / `Rewind` 等原语。
+调用方通常只在启动期取一次并自行保存, 以便直接调用 `Arena` 的分配与复位原语。
 `Release` 之后该指针失效。
 
 ---
@@ -175,7 +176,7 @@ BufferInfo AllocBuffer(size_t size);
 
 ### 注解
 
-分配不初始化内存。该内存随 `Reset` / `Rewind` / `Release` 整体失效, 不能单独释放。
+分配不初始化内存。该内存随 `Reset` / `Release` 整体失效, 不能单独释放。
 容量不足时返回空, 不扩容、不抛错。
 
 ---
@@ -283,8 +284,8 @@ LPCSTR CopyString(LPCSTR text);
 
 | 要求 | 值 |
 | --- | --- |
-| 标头 | `common/AllocatorHub.h`(`src\common\AllocatorHub.h`) |
-| 实现 | `src\common\AllocatorHub.cpp` |
+| 标头 | `framework/base/mem/AllocatorHub.h`(`src\framework\base\mem\AllocatorHub.h`) |
+| 实现 | `src\framework\base\mem\AllocatorHub.cpp` |
 | 命名空间 | `AllocatorHub` |
 | 依赖 | `MemoryManager` · `kernel32.dll` · `ucrt` |
 | 平台 | Windows 全版本 |

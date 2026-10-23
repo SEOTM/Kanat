@@ -16,7 +16,7 @@
 ## 1. 文件粒度
 
 - **一个源文件模块 = 一份文档**:`.h` / `.cpp` 成对的模块写成一份 `<模块名>.md`, 与源文件同目录
-  (例: `src\common\AppEnv.h` + `src\common\AppEnv.cpp` ⇒ `src\common\AppEnv.md`)。
+  (例: `src\framework\base\AppEnv.h` + `src\framework\base\AppEnv.cpp` ⇒ `src\framework\base\AppEnv.md`)。
 - 单文件模块同样各成一份: `src\Identity.h` ⇒ `src\Identity.md`; `src\main.cpp` ⇒ `src\main.md`。
 - 文档覆盖该模块**对外公开面**: 命名空间内声明的函数、公开类型、公开常量/枚举值。文件内 `static`
   函数、匿名命名空间内容、只在本编译单元生效的内部件**不立条**, 必要时在概述末句一句话交代。

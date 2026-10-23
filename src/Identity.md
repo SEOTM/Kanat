@@ -6,7 +6,7 @@
 派生新项目时, 代码侧改名只需改本文件; 构建侧身份在 `CMakeLists.txt` 顶部的两个变量, 派生清单与
 步骤见 `docs\DERIVE.md`。
 
-本模块是纯头文件, 只含 `constexpr` 常量, 不含函数、类型与运行期状态; 框架层(framework / common)
+本模块是纯头文件, 只含 `constexpr` 常量, 不含函数、类型与运行期状态; 框架层(framework)
 不引用本文件, 身份只出现在场景层(经 `DispatchConfig` 注入调度层)与构建定义里。日志前缀(形如 `[DEMO]`)与
 `src\demo\` 目录名不属功能身份, 派生时可选改动; 日志前缀已配置化(`IDENTITY_LOG_PREFIX` ⇒ `DispatchConfig.szLogPrefix`),
 派生时改这一个常量即可, 不必改调度层实现。

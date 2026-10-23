@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.28)
 # 工程: Kanat(暗渠框架) —— 框架内核 + 最小 Demo 示例
 # 描述: 暗渠框架(Kanat)的内核与最小 Demo 示例 —— framework 层(基础设计量 / 布局模型 /
 #       控件库 / 渲染 / 事件机制 / 读方向解析 / 几何解算 / ImGui 宿主 / D3D11 后端; 源自 GenUI 快照并就地演进)
-#       与 common 层(内存管理 / 会话分配器 / 环境件 / 文件校验 / 资源与路径)。
+#       与内存 / 环境 / 校验 / 路径等基础设施(2026-10-23 起并入 framework: base / base\mem / base\util / dispatch)。
 #
 # 层级裁剪(相对 GenUI\src, app / doc / editor / tests 四层整体不引入):
 #   1. 无编辑器能力  : 不载入编辑器外壳布局, 无布局增删 / 改类型 / 写盘, 无文件对话框与提示布局
@@ -91,25 +91,34 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ================================
-# 源码(本工程自持; framework / common = GenUI 的逐字节复制快照)
+# 源码(本工程自持; framework = GenUI 的逐字节复制快照 + 本工程首产件)
 #   framework\base           : 基础设计量 / 控件类型契约 / 控件缓冲数据与装配 / 函数指针 / 文本宽度
+#                              / 平台环境件(AppEnv)
+#   framework\base\mem       : 内存设施(MemoryManager 分配器 + AllocatorHub 会话分配器;
+#                              2026-10-23 自 common 归位)
+#   framework\base\util      : 与框架语义无关的纯算法件(FileCodec 校验; 2026-10-23 自 common 归位)
 #   framework\render         : 渲染能力接口(Render.h)与具体渲染技术的实现(按技术名分目录)
 #   framework\render\imgui         : ImGui 宿主(窗口 / 上下文 / 帧流程 / 消息循环)与 D3D11 图形后端设施
 #                                   (设备 / 交换链 / 渲染目标 / 呈现; 2026-10-22 自 common 归位)
 #   framework\render\imgui\ability : ImGui 侧渲染能力提供者(能力表的唯一填表处)
 #   framework\render\imgui\control : 控件库与部件层(逐控件绘制)
 #   framework\layout         : 布局子系统(布局对象 / 中间态模型 / 构建原语 / 读方向解算 / 渲染出口 / 几何解算)
-#   framework\dispatch       : 调度层(帧间事件 / 事件绑定表 / Dispatch 与场景实现切片)
-#   common                   : 内存管理 / 会话分配器 / 环境件 / 文件校验 / 资源与路径
+#   framework\dispatch       : 调度层(帧间事件 / 事件绑定表 / Dispatch 与场景实现切片 / 资源与路径解析 *)
 #   demo                     : 本 Demo 的业务层(事件绑定表)
+# 注: 原 src\common 层已于 2026-10-23 取消(五件全部归位): 平台环境件 → framework\base;
+#     内存设施 → framework\base\mem; 纯算法 → framework\base\util; exe 路径解析 → framework\dispatch。
 # 注: Layout 前缀的 13 件(Layout / LayoutBuilder / LayoutModel / LayoutRender / LayoutSolver,
 #     各含配套 .md 接口文档)收进 framework\layout 子目录 —— 源码内引用随之带上 layout 前缀。
 # ================================
 set(KANAT_BASE_SRC
+	src/framework/base/AppEnv.cpp
 	src/framework/base/BasicDesign.cpp
 	src/framework/base/ControlSpec.cpp
 	src/framework/base/CtrlBuffer.cpp
 	src/framework/base/TextWidth.cpp
+	src/framework/base/mem/AllocatorHub.cpp
+	src/framework/base/mem/MemoryManager.cpp
+	src/framework/base/util/FileCodec.cpp
 )
 
 set(KANAT_RENDER_SRC
@@ -133,15 +142,8 @@ set(KANAT_DISPATCH_SRC
 	src/framework/dispatch/Dispatch.cpp
 	src/framework/dispatch/DispatchScene.cpp
 	src/framework/dispatch/FrameEvent.cpp
+	src/framework/dispatch/ResourceLoader.cpp
 	src/framework/dispatch/UIEventHandler.cpp
-)
-
-set(KANAT_COMMON_SRC
-	src/common/AllocatorHub.cpp
-	src/common/AppEnv.cpp
-	src/common/FileCodec.cpp
-	src/common/MemoryManager.cpp
-	src/common/ResourceLoader.cpp
 )
 
 set(KANAT_DEMO_SRC
@@ -156,7 +158,6 @@ add_executable(${APP_PROJECT_NAME}
 	${KANAT_LAYOUT_SRC}
 	${KANAT_DISPATCH_SRC}
 	${KANAT_DEMO_SRC}
-	${KANAT_COMMON_SRC}
 )
 
 # 唯一包含根 = src\(源码内一律以"子目录/文件"形式引用, 与 GenUI 的引用口径一致)
