@@ -1,144 +1,78 @@
-# Kanat(暗渠框架) · 派生指南(纲领二的展开)
+# 派生新应用
 
-> 纲领二原文(2026-10-15): "后续其他本框架代码，将从本项目开始"。
-> 解读(用户确认, 选项 A): 本项目 = **框架消费方项目的派生源(母本)** —— 后续其他使用本框架的项目,
-> 以本项目为起点派生出去, 不再从 GenUI 复制。
-> 因此本工程的第一要求是**可派生**: 身份集中、派生成本最低、派生后有明确自证口径。
->
-> **公开版说明**: 本仓库为公开版本, 已移除逐轮过程留痕(`docs\HISTORY\` 等)与内部工程管理文档。
-> 文中指向这些目录的引用仅用于说明沿革, 对应文件不在本仓库内。
+Kanat 是“框架 + 最小 Demo”的仓库。派生新应用时，把整个仓库复制出去，替换应用身份与业务事件即可；框架层不需要改动。
 
-## 1. 派生五步
+## 1. 复制与改名
 
-| 步 | 动作 | 落点 |
-| :--- | :--- | :--- |
-| 1 | 复制整个工程目录并改名 | `<ws>\Kanat` → `<ws>\<新项目>` |
-| 2 | 改**代码侧身份**(唯一真源) | `src\Identity.h` |
-| 3 | 改**构建侧身份** | `CMakeLists.txt` 顶部两行 `APP_PROJECT_NAME` / `APP_DOC_NAME` |
-| 4 | 改**布局文档身份** | 布局文档的 `layouts[0].name` / `label`, 以及各控件 `event` 字段(须与 `IDENTITY_EVENT_*` 成对) |
-| 5 | 重建与自证 | `cmake` 生成 → 注入 NuGet 依赖 → `msbuild`(步骤见 `README.md`「构建」)+ exe 目录内启动一次(口径见 §4) |
+```powershell
+Copy-Item -Recurse Kanat MyApp
+Remove-Item -Recurse -Force MyApp\.git
+```
 
-构建不依赖工程名的硬编码(解决方案与生成的工程文件按 `out\` 通配发现) ⇒ 派生后无需修改构建脚本;
-旧的四步封装脚本 `tools\build.ps1` 已不在本仓库, 现行步骤见 `README.md`「构建」。
+在新目录初始化自己的 Git 仓库：
 
-**派生时不再复制应用层协调代码**(2026-10-21 结构调整): 协调层已归 `src\framework\dispatch\Dispatch.{h,cpp}` +
-`DispatchScene.cpp`, 属框架侧、随目录整体带走 ⇒ 派生者**不需要**从 GenUI 或其它项目再抄一份应用层宿主/场景代码,
-也**不需要改** `Dispatch.cpp`(它与 `DispatchScene.cpp` 不含任何项目身份; 身份经 `DispatchConfig` 注入。
-`Identity.h` 现含 `IDENTITY_DOC_NAME` / `IDENTITY_DOC_ENV` / `IDENTITY_ENV_AUTOCLOSE` / `IDENTITY_APP_NAME` /
-`IDENTITY_ERR_TITLE` / **`IDENTITY_LOG_PREFIX`** / 两条事件名共 7 个常量)。派生动作因此只有四处:
-`src\Identity.h`(常量)、`CMakeLists.txt` 顶部两变量、布局文档身份字段, 以及 `src\demo\DemoEvents`(业务事件)。
+```powershell
+cd MyApp
+git init
+```
 
-## 2. 必改项(功能身份; 漏改会出错)
+## 2. 必改项
 
-| 项 | 现值 | 落点 | 漏改后果 |
+| 项 | 位置 | 现值 | 说明 |
 | :--- | :--- | :--- | :--- |
-| 工程名 / 目标名 | `Kanat` | CMakeLists.txt:`APP_PROJECT_NAME` | 与新项目名不符, 同机多工程易混 |
-| 布局文档名 | `Kanat.json` | CMakeLists.txt:`APP_DOC_NAME` + `Identity.h:IDENTITY_DOC_NAME` | 运行期找不到文档(退出码 1) |
-| 应用名 | `Kanat` | `Identity.h:IDENTITY_APP_NAME` | 窗口类名(`<APPNAME>_IMGUI_CLASS`)与窗口标题不随新项目变; 类名须进程外唯一, 不改可能与同机其它程序重名 |
-| 错误标题 | `暗渠框架 Kanat 错误` | `Identity.h:IDENTITY_ERR_TITLE` | 启动失败弹窗仍显示旧项目名(无害, 但不专业) |
-| 环境开关名 | `DEMO_DOC` / `DEMO_AUTOCLOSE_MS` | `Identity.h` | 与同机其它工程的自动化脚本约定冲突 |
-| 事件名 | `DEMO_DRAG_WINDOW` | `Identity.h:IDENTITY_EVENT_DRAG_WINDOW` + 布局文档 `event` 字段 | **只改一侧 ⇒ 静默失绑**(控件无响应, 加载与运行均无报错) |
-| 布局名 / 标签 | `DemoMain` / `暗渠框架 Demo` | 布局文档 `layouts[0].name` / `label` | 仅影响日志与标识 |
+| 项目名 / 目标名 | `CMakeLists.txt` 的 `APP_PROJECT_NAME` | `Kanat` | 决定解决方案、工程与可执行文件名 |
+| 布局文档名 | `CMakeLists.txt` 的 `APP_DOC_NAME` + `src/Identity.h` 的 `IDENTITY_DOC_NAME` | `Kanat.json` | 两处必须一致；构建期按此名生成 `.bin` |
+| 应用名 | `src/Identity.h` 的 `IDENTITY_APP_NAME` | `Kanat` | 派生窗口类名 `<APPNAME>_IMGUI_CLASS` 与默认窗口标题；窗口类名须进程外唯一 |
+| 错误弹窗标题 | `IDENTITY_ERR_TITLE` | `暗渠框架 Kanat 错误` | 启动失败时显示 |
+| 文档覆盖环境变量 | `IDENTITY_DOC_ENV` | `DEMO_DOC` | 与同机其他工具的环境变量约定冲突时改 |
+| 自动退出环境变量 | `IDENTITY_ENV_AUTOCLOSE` | `DEMO_AUTOCLOSE_MS` | 同上 |
+| 日志前缀 | `IDENTITY_LOG_PREFIX` | `DEMO` | 日志行首 `[DEMO]` |
+| 拖动窗口事件名 | `IDENTITY_EVENT_DRAG_WINDOW` + 布局文档 `event` | `DEMO_DRAG_WINDOW` | 只改一侧会静默失绑 |
+| 委托演示事件名 | `IDENTITY_EVENT_ENTRUST_PROBE` + 布局文档 `event` | `DEMO_ENTRUST_PROBE` | 同上 |
+| 布局名 / 标签 | 布局文档的 `layouts[0].name` / `label` | `DemoMain` / `暗渠框架 Demo` | 只影响日志与标识 |
+| 业务事件表 | `src/demo/DemoEvents.cpp` | 两条演示事件 | 换成自己的处理函数 |
 
-## 3. 可选改动(不影响功能)
+`src/Identity.h` 共 8 个常量：3 个文档 / 运行开关，3 个应用与日志身份，2 个事件名。
 
-- 日志前缀 `[DEMO]`(`Identity.h` 的 `IDENTITY_LOG_PREFIX`; 经 `DispatchConfig.szLogPrefix` 交给调度层, 每行打印为
-  `[<前缀>] `) —— 前缀**已配置化**, 派生时只改这一个常量, 不必改 `Dispatch.cpp`;
-- 事件层目录名 `src\demo\` 与事件层类名 `DemoEvents`(场景装配切片 = `src\framework\dispatch\DispatchScene.cpp` 内的私有静态函数);
-- `README.md` 与 `docs\*.md` 中的工程名、路径示例与文档名。
+## 3. 建议改动
 
-## 4. 派生后自证(建议口径)
+- 把 `src/demo/` 改名为业务名（如 `src/app/`），并同步 `#include` 与 `Dispatch::Init` 传入的绑定表函数；
+- 把 `Kanat.json` 改名为 `App.json`，重写布局与控件；
+- 更新 `README.md` 与 `docs/` 中的项目名、示例路径；
+- 如果不再需要事件委托演示，删除 `CTRL_EVENT_ENTRUST_PARENT` 相关控件与处理器；
+- 如果产品只需要单窗口，保留 `DispatchConfig::dwWndCount = 1`；多窗口时按 `ImGuiHost::MAX_WND`（8）声明。
 
-1. **构建**: `cmake` 生成 → 注入 NuGet 依赖 → `msbuild` 三步全绿(0 警告 0 错误);
-2. **运行**: exe 目录内启动一次, 退出码 0;
-3. **载入确认**: 日志"场景载入"行的路径与新文档名一致; `[DEMO] 建窗几何:` 行是 `ImGuiHost::Start` 的默认
-   几何(客户区 800x600、工作区居中), 文档几何在首帧由 `AcquireNextWnd` 结算(见随后自证行的"窗口调整"列);
-4. **布局有效性**: 结构件缺失或错序**不会**在加载期报错(退出码 0、启动段日志约 7 行, 见
-   `docs\EXAMPLES.md` §3.1) ⇒ **本条目前无自动判据, 属待补**: 计划在场景层显式查询
-   `Layout::IsInvalid` 并打印一行有效性诊断, 使派生者一眼可见;
-5. **交互与外观**: 一律标注"待本地人工复核"(无人值守会话无法合成真实鼠标交互)。
+## 4. 派生后自证
 
-## 5. 无需改动(随派生整体带走)
+1. **配置与构建**：零警告、零错误；
+2. **启动**：在 exe 目录运行，退出码 0；
+3. **文档**：控制台“场景载入”行的路径与新文档名一致；
+4. **控件**：日志中的控件数、层次与坐标符合预期；
+5. **事件**：点击 / 拖动绑定了事件的控件，处理函数被调用；
+6. **交互与外观**：拖动、悬停、输入法需本机人工复核。
 
-`src\framework\`(74 文件 = 源 49 件 + 接口文档 25 份; 分 `base` 26 / `render` 2 / `render\imgui` 15 / `layout` 18 / `dispatch` 13) ·
-`src\Identity.{h,md}` / `src\main.{cpp,md}` ·
-`src\framework\dispatch\Dispatch.{h,cpp,md}` / `src\framework\dispatch\DispatchScene.cpp`(调度层: 派生新项目时只经
-`DispatchConfig` 注入身份与场景文档名, 结构本身随派生整体带走, 无需改实现) ·
-`NuGet.config` · `nuget\GenUI.Deps.Native.1.0.0.nupkg`(构建步骤见 `README.md`「构建」)。
+启动日志示例：
 
-> `src\demo\`(`DemoEvents.{h,cpp,md}`)不在本清单: 它是"框架使用范例"的事件层, 派生新项目时按新应用的业务事件改写
-> (可作范本参考); 现行 `src\demo\` 共 3 文件 = 源 2 件 + 接口文档 1 份。
+```text
+[DEMO] 场景载入: ...\Kanat.bin (布局=DemoMain 控件=15 窗口=...)
+[DEMO] 事件绑定: 3 枚控件已绑定处理器(其中委托父容器 1 枚, 已解析 1 枚)
+[DEMO] 控件层次: 0=0 1=0 ...
+[DEMO] 控件坐标: 0=(180,120) ...
+```
 
-> 计数口径(2026-10-16 第 7 轮, 2026-10-18 第 27 轮按"源 + 文档"重列, 2026-10-21 结构调整 S5 按四层重列,
-> 2026-10-22 按 `CtrlData` 并入 `CtrlBuffer` 与 `D3D11Manager` 归位复核,
-> 2026-10-23 按 `common` 层取消复核):
-> `framework` 源 49 件 = GenUI 快照 25 件(含自 `common` 归位的 `D3D11Manager` 2 件; 原 30 件去 `Render.cpp` 等上游裁剪,
-> 并删 `CtrlData.h`) + 部件层拆分产物 2 件(`Widgets.{h,cpp}`) +
-> 首产件 7 件(`ImGuiHost.{h,cpp}` + `ImGuiRender.{h,cpp}` + `Render.h` + `LayoutRender.{h,cpp}`) +
-> 新增与归位件 5 件(`base\CtrlBuffer.{h,cpp}` + `dispatch\Dispatch.{h,cpp}` + `dispatch\DispatchScene.cpp`) +
-> 自 `common` 归位件 10 件(2026-10-23: `base\mem\MemoryManager` / `base\mem\AllocatorHub` /
-> `base\util\FileCodec` / `base\AppEnv` / `dispatch\ResourceLoader`, 各 `.h` + `.cpp` 2 件);
-> 接口文档 = **每模块一份**共 28 份(`framework` 25 + `Identity` / `main` 2 + `demo` 1), 体例见
-> `docs\INTERFACE-DOC-STYLE.md`。全工程 81 文件 = 源 53 件 + 接口文档 28 份。
-> `Render.h` 仍是快照件(文件名不变), 但其内容已就地改造为"渲染能力接口定义"(受控漂移, 见下)。
+## 5. 不要改的部分
 
-框架层原本是 GenUI 侧的**逐字节复制快照**; 上游修复不会自动进入派生项目, 同步方式见本节前段的归位登记与
-`docs\EVAL-COMMON-LAYERING.md`(原 `README.md` 第 6 节已随 2026-10-22 README 重写移除)。
-派生后接口文档随源目录整体带走, 文档内的模块名 / 路径已按 `src\` 相对路径书写, 改名只需替换工程身份
-(`Identity.h` 与 `CMakeLists.txt` 顶部两变量), 无需逐份改文档。
+- `src/framework/` 的分层与路径：派生时整体带走；
+- `third_party/Kanat.Deps.Native.1.0.0.nupkg` 与 `CMakeLists.txt` 的依赖解包逻辑：除非升级依赖版本；
+- `tools/json2bin.py`：除非同步修改 C++ 侧的 bin 格式契约；
+- 28 份模块接口文档：路径与模块名按 `src/` 相对路径书写，改名工程不需要逐份修改。
 
-**命名治理(2026-10-15 第 5 轮)**: `framework` / `common` 已就地执行数组命名治理(数组名去 `a` / `asz` 前缀、
-改用复数; 规则见 `CodingPre\Habits_CPP.md` §4, 对照表见 `docs\HISTORY\2026-10-15-000005.md`), 故这两层与 GenUI 侧快照
-**不再逐字节一致**。派生时随目录整体带走(派生者无需额外动作); 但从 GenUI 重新复制这两层会**覆盖**本次
-治理, 处置口径见 `README.md` §6。
+## 6. 常见错误
 
-**渲染解耦(2026-10-16 第 7 轮)**: `Render.h` 已就地改造为渲染能力接口(函数指针表), `Render.cpp` 已删除,
-新增 `ImGuiRender.{h,cpp}` 与 `LayoutRender.{h,cpp}` —— 详见 `docs\CHARTER.md` 纲领四与
-`docs\EXAMPLES.md` §2 的第三例例外条。从 GenUI 重新复制 `framework` 层同样会覆盖本次改造。
-
-**渲染链归属(2026-10-16 第 8 轮)**: `Render.h` 增第 17 项能力 `AcquireWnd`(输入期望客户区尺寸, 不符即
-主动调窗); `LayoutRender` 删 `CheckWindowResize`(渲染出口零窗口身份); 首产件 `ImGuiHost` 收回主消息
-循环 / 帧流程 / 每窗口 D3D 设施 / 呈现 / 遮挡 / IME / 窗口圆角(公开面新增 `FrameFunc` / `Run` /
-`AcquireNextWnd` / `GetCurrentWnd` / `GetWndCount` / `SetIMEDisabled` / `GetRenderStats` / `GetResizeStats`,
-`WndSpec` 增圆角半径字段, `InitUnit` / `NewFrame` / `RenderToTarget` 收进内部); 快照件 `Controls.cpp` 的
-标题栏派发点把 `param` 通用槽改为携带当前渲染窗口句柄; 帧抓取(`DEMO_FRAME_DUMP` 与后台缓冲回读)取消。
-详见 `docs\CHARTER.md` 纲领五与 `docs\EXAMPLES.md` §2 第四例例外条。从 GenUI 重新复制 `framework` 层
-同样会覆盖本次改造。
-
-**窗口位置请求(2026-10-16 第 10 轮)**: `Render.h` 增第 18 项能力 `SetWndPos`(装填目标窗口的期望位置);
-首产件 `ImGuiHost` 增 `PostWndPos` / `GetWndPos`, 并由 `AcquireNextWnd` 在取得渲染目标时消费装填值
-(实质移动发生在窗口绘制之前, 比请求帧晚一帧); `ControlSpec.h` 增标题栏参数槽的打包 / 解包口径
-(`PackWndPos` / `UnpackWndPos`); 快照件 `Controls.cpp` 的标题栏派发点改为自行算出"窗口期望坐标"并放进
-`param` 通用槽(不再携带窗口句柄); `DemoEvents.{h,cpp}` 只把位置请求装填给能力表、不调任何窗口 API。
-详见 `docs\CHARTER.md` 纲领六与 `docs\HISTORY\2026-10-16-093925.md`。本轮为**可回滚试验**(回滚基线 =
-`Kanat\out\Release\demo_old.exe`, 手感不佳即整体还原)。从 GenUI 重新复制 `framework` 层会覆盖本次改造。
-
-**窗口位置归属(2026-10-16 第 10 轮提出 / 第 11 轮按用户口径修正)**: 窗口件(WND 控件)的 `position` 即
-**窗口位置记录** —— 解析期按三支规则给初值(声明 `(-1,-1)` 随机 / 在屏内直用 / 越屏降级随机, 见
-`GeometrySolver::ResolveWndPos` 与 `ScreenRef` 的工作区查询), 运行期由标题栏绑定的事件改写(事件 `param`
-携带期望坐标, 打包见 `ControlSpec.h` 的 `PackWndPos` / `UnpackWndPos`); 渲染出口以
-`AcquireWnd(pos, size)`(**签名带参**)把记录交给实现方, 由 `AcquireNextWnd` 在该窗口绘制之前结算位置与尺寸;
-`OpenWnd` 的摆放位置改为布局原点 `(0,0)`; 标题栏拖动基线现行读位置记录(`Controls.cpp` 的
-`GRAB_BASE_BY_WND_POS`, 手感不佳即回退为读真实窗口矩形)。涉及快照件: `Render.h` / `layout\LayoutRender.cpp` /
-`Controls.{h,cpp}` / `GeometrySolver.{h,cpp}` / `BasicDesign.{h,cpp}`。详见 `docs\CHARTER.md` 纲领六
-(含口径修正)与 `docs\HISTORY\2026-10-16-101915.md`。
-
-**调度层形态(2026-10-21 第 32 轮提出, 结构调整 S3 归位)**: `src\main.cpp` 只做胶水(初始化 → 宿主启动 → 主循环 → 释放); 调度逻辑集中在
-`src\framework\dispatch\Dispatch.{h,cpp}`(静态单例: 事件绑定表经函数指针注入 / 会话分配器与成员块 / 文档解析与几何解算 /
-投影配色与样式注入 / 每帧流程 / 无人值守 / 退出判据 / 清理), 场景装配的分配与释放收在同目录
-`DispatchScene.cpp`(私有静态函数 `LoadScene` / `UnloadScene`)。派生新项目时通常只需替换场景文档与业务事件,
-调度层结构可整体带走; 建窗与窗口身份(类名与默认标题)由 `framework\render\imgui\ImGuiHost::Start` 按 `IDENTITY_APP_NAME` 派生,
-派生者不再需要自带窗口过程。
-
-**例外**: 本工程首产的框架层文件 = `render\imgui\ImGuiHost.{h,cpp,md}`(纲领三) 与
-`render\imgui\ability\ImGuiRender.{h,cpp}` / `render\Render.h` / `layout\LayoutRender.{h,cpp}`(纲领四);
-另有部件层拆分产物 `render\imgui\control\Widgets.{h,cpp,md}`、自控件库拆出的 `base\CtrlBuffer.{h,cpp,md}` 与
-归位的 `dispatch\Dispatch.{h,cpp,md}` + `DispatchScene.cpp` —— 2026-10-21 起 GenUI 侧已同名(第 43 轮反向
-吸收其九件), 派生时仍随目录整体带走; 从 GenUI 重新复制 `framework` 层时**不得覆盖或删除**这些件(整目录替换会丢件),
-且须先按原 `README.md` §6 的"结构治理(2026-10-21)"重放分层(GenUI 侧仍是旧扁平路径; 该节已随 2026-10-22
-README 重写移除, 现行以 `docs\CHARTER.md` 纲领十与本节为准)。
-
-另有**快照件路径归位 2 件**(`render\imgui\D3D11Manager.{h,cpp}` + 随迁接口文档, 自 `common` 移至
-`render\imgui`, 内容未改) —— 从 GenUI 重新复制 `common` 时按"漂移处置(2026-10-22 D3D11Manager 归位)"
-处置, 否则会写回一份不在源表内的同名件。**2026-10-23 起 `common` 层整体取消**: 五件归位见 §5,
-从 GenUI 重新复制 `common` 时须映射到 `base\mem` / `base\util` / `base` / `dispatch`, 不得重建 `src\common\`。
+| 现象 | 原因 |
+| :--- | :--- |
+| 启动弹窗“应用初始化失败” | `APP_DOC_NAME` 与 `IDENTITY_DOC_NAME` 不一致，或文档不在 exe 同目录 |
+| 控件点击无反应 | 布局 `event` 与绑定表事件名不一致；检查大小写与拼写 |
+| 拖动窗口无反应 | 标题栏 `event` 未绑定 `IDENTITY_EVENT_DRAG_WINDOW`，或布局中没有 `CTRL_TYPE_WND` |
+| 窗口类注册失败 | `IDENTITY_APP_NAME` 与同机其他程序重名；窗口类名须进程外唯一 |
+| 日志前缀仍是 `[DEMO]` | 只改了 `Identity.h` 但未重新构建，或改的是错误副本 |

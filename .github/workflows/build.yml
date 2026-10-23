@@ -1,0 +1,42 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure
+        run: cmake -S . -B out -G "Visual Studio 17 2022" -A x64
+
+      - name: Build Release
+        run: cmake --build out --config Release --parallel
+
+      - name: Verify artifacts
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "out/Release/Kanat.exe")) { throw "Kanat.exe was not produced" }
+          if (-not (Test-Path "out/Release/Kanat.bin")) { throw "Kanat.bin was not produced" }
+          Get-Item "out/Release/Kanat.exe", "out/Release/Kanat.bin" | Format-Table Name, Length
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kanat-release
+          path: |
+            out/Release/Kanat.exe
+            out/Release/Kanat.bin
+          if-no-files-found: error

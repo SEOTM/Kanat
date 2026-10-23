@@ -1,134 +1,183 @@
 # Kanat（暗渠框架）
 
-暗渠框架（Kanat）：声明式界面框架 —— 一份布局文档 → 一张布局对象 → 一条渲染路径 → 事件处理。
-本仓库同时承载**框架内核**与**随框架附带的最小 Demo 示例**：内核是暗渠框架本体，示例是"如何用暗渠框架写一个界面"的最小样本。
+Kanat 是一个 Windows 原生的声明式界面框架。应用用一份布局文档描述界面，框架把文档解析为布局对象、解算像素几何、生成渲染路径，并把控件事件交回应用代码。框架内核不包含任何应用身份；仓库同时附带一个最小 Demo，演示如何用 Kanat 构建单窗口界面。
 
+## 特性
 
-## 两层结构
+- **布局文档是唯一真源**：界面结构、控件、几何参考量与事件名都写在 JSON 中；构建期可转为二进制 `.bin`，运行期两种形态共用同一套解析器。
+- **自适应几何**：每个控件的 `x` / `y` / `width` / `height` 由 8 个参考量系数加像素偏移解算；窗口尺寸变化时整体重算，不在代码里硬编码像素。
+- **渲染后端解耦**：布局渲染只依赖 `RenderApi` 与 `CtrlApi` 两张能力表。当前实现是 Dear ImGui + D3D11；替换 UI 技术时提供另一套实现并注入即可，布局与调度代码不改，控件库可按同一 `CtrlApi` 另行实现。
+- **声明式控件库**：22 种控件类型（20 种有绘制实现），父子链同时驱动绘制层次、坐标累加与事件委托。
+- **事件三段式**：文档 `event` 字段 → 应用侧绑定表 → 处理函数。框架不反向依赖应用层。
+- **自包含构建**：Dear ImGui 与 RapidJSON 随仓库提供，CMake 在配置期解包，不需要联网或包源。
 
-| 层 | 目录 | 说明 |
-| :--- | :--- | :--- |
-| 框架内核 | `src\framework\` | 暗渠框架本体：基础设计量、控件类型契约、控件缓冲、文本宽度、渲染能力表与 ImGui / D3D11 实现、布局对象与解算、调度层，以及内存设施（`base\mem`）、纯算法（`base\util`）、平台环境件（`base\AppEnv`）、资源与路径（`dispatch\ResourceLoader`） |
-| 最小 Demo 示例 | `src\demo\` + `src\main.cpp` + `Kanat.json` | 随框架附带的参考实现：两条业务事件（拖动窗口 / 事件委托）与一份单窗口布局文档 |
+## 快速开始
 
-框架内核不含任何项目身份：应用名、文档名、事件名等经 `src\Identity.h` 与 `CMakeLists.txt` 顶部两个变量注入（派生新项目见 `docs\DERIVE.md`）。
-
-## 演示内容
-
-- 一份单布局文档 `Kanat.json`：结构件（窗口 / 标题栏 / 内容容器）+ 12 枚内容控件。
-- 布局来源五式：调度层初始化接受缺省加载链 / 内存缓冲（JSON 或 bin）/ 布局模型（中间态）/ 布局对象数组 / 延迟装配；
-  延迟装配可经 `AttachLayouts`（整体替换）与 `AddLayout`（逐枚追加）在运行期提交，并经 `SetLayoutVisible` /
-  `SetLayoutNested` 控制每枚布局的可见性与嵌套渲染（契约见 `src\framework\dispatch\Dispatch.md`）。
-- 标题栏按住拖动窗口：拖动事件把窗口期望坐标写进布局的窗口位置记录，渲染侧按记录结算窗口几何。
-- 事件委托：容器绑定 `DEMO_ENTRUST_PROBE`，其子按钮以 `CTRL_EVENT_ENTRUST_PARENT` 把自己的事件委托给父容器，点击到达父容器的处理函数。
-- 父子链：`parent` 字段驱动层序与坐标累加，运行日志逐枚打印层值与坐标供核对。
-- 自适应几何：所有控件位置与尺寸来自布局参考量（字号 / 控件高 / 间隔 / 内边距），窗口缩放时整体等比重算。
-
-## 构建
-
-### 前置
+### 环境要求
 
 | 项 | 要求 |
 | :--- | :--- |
 | 系统 | Windows 10 / 11 x64 |
-| 工具链 | Visual Studio 2026（"使用 C++ 的桌面开发"工作负载），CMake 3.28+ |
-| Python | Python 3（构建期把 `Kanat.json` 转成 `Kanat.bin`；缺失时退化为只复制 JSON） |
-| 依赖 | 仓库自带 `nuget\GenUI.Deps.Native.1.0.0.nupkg`（ImGui 1.92.x + DX11 / Win32 后端、rapidjson），无需联网 |
+| 编译器 | Visual Studio 2022（17.10+）或 Visual Studio 2026，安装“使用 C++ 的桌面开发”工作负载 |
+| CMake | 3.20 或更高 |
+| Python | 3.8+（可选；用于构建期生成 `Kanat.bin`，缺失时直接复制 JSON） |
 
-### 步骤
+### 构建
 
 ```powershell
-# 1. 生成解决方案
+cmake -S . -B out -G "Visual Studio 17 2022" -A x64
+cmake --build out --config Release
+```
+
+Visual Studio 2026 把生成器改为 `"Visual Studio 18 2026"`：
+
+```powershell
 cmake -S . -B out -G "Visual Studio 18 2026" -A x64
-
-# 2. 注入本地 NuGet 依赖（每次 configure 后都要重跑）
-# 注: 只替换文件末尾的 </Project> —— vcxproj 内 ProjectReference 的 <Project> 元数据同样以 </Project> 结尾,
-#     用 [string]::Replace 会一并改坏(实测 MSB3107), 故按 LastIndexOf 定位。
-$vcx = "$PWD\out\Kanat.vcxproj"
-$xml = [IO.File]::ReadAllText($vcx)
-$item = @"
-  <ItemGroup>
-    <PackageReference Include="GenUI.Deps.Native"><Version>1.0.0</Version></PackageReference>
-  </ItemGroup>
-</Project>
-"@
-$idx = $xml.LastIndexOf('</Project>')
-$xml = $xml.Substring(0, $idx) + $item + $xml.Substring($idx + '</Project>'.Length)
-[IO.File]::WriteAllText($vcx, $xml, (New-Object Text.UTF8Encoding($false)))
-
-# 3. 还原并构建
-msbuild out\Kanat.slnx -t:Restore -p:Configuration=Release -p:Platform=x64
-msbuild out\Kanat.slnx -p:Configuration=Release -p:Platform=x64 -m
+cmake --build out --config Release
 ```
 
-Visual Studio 2022 把生成器名改为 `"Visual Studio 17 2022"` 即可；工程只要求 C++20。
+### 运行
 
-### 产物
-
-```
-out\Release\
-├─ Kanat.exe      暗渠框架的最小 Demo（单窗口）
-└─ Kanat.bin      构建期生成的 bin 文档
-```
-
-## 运行
-
-工作目录必须是 exe 所在目录（布局文档按 exe 同目录解释）：
+工作目录必须是可执行文件所在目录，布局文档按 exe 同目录解析：
 
 ```powershell
 cd out\Release
 .\Kanat.exe
 ```
 
-加载链：`.\Kanat.bin` 优先，其次 `.\Kanat.json`；形态由内容嗅探判定。缺省来源即此加载链；其余来源
-（内存缓冲 / 布局模型 / 布局对象数组 / 延迟装配）经 `Dispatch::Init` 的 `LayoutSource` 选择，口径见
-`src\framework\dispatch\Dispatch.md`。
+启动后按住标题栏可拖动窗口；`ESC` 或 `Alt+F4` 退出。`DEMO_AUTOCLOSE_MS` 可让程序在指定毫秒后自动退出，便于无人值守验证：
 
-| 环境变量 | 作用 |
-| :--- | :--- |
-| `DEMO_DOC` | 覆盖布局文档文件名（缺省 `Kanat.json`）；可让同一 exe 承载多份范例 |
-| `DEMO_AUTOCLOSE_MS` | 启动后 N 毫秒自动退出（无人值守运行用）；不设则常驻 |
+```powershell
+$env:DEMO_AUTOCLOSE_MS = 1500
+.\Kanat.exe
+```
 
-退出：`ESC` 或 `Alt+F4`。
+完整的构建选项、Debug 构建与排障见 [docs/BUILD.md](docs/BUILD.md)。
 
-启动时控制台打印场景载入、控件数、事件绑定、逐控件层与坐标等自证日志，便于核对布局是否按预期展开。
+## 界面如何描述
+
+一份布局文档是一个 `layouts` 数组。每个布局包含布局级元数据、参考尺寸与控件数组：
+
+```json
+{
+  "layouts": [
+    {
+      "name": "DemoMain",
+      "label": "Kanat Demo",
+      "width":  { "coeff": [0, 0, 1, 0, 0, 0, 0, 0], "offset": 0 },
+      "height": { "coeff": [0, 0, 0, 1, 0, 0, 0, 0], "offset": 0 },
+      "autosize": {
+        "mode": "AUTO_SIZE_BY_SCREEN_HEIGHT",
+        "unit": 0,
+        "width": 570,
+        "height": 500,
+        "controlHeight": 25,
+        "fontSize": 13,
+        "space": 10,
+        "padding": 4
+      },
+      "ctrls": [
+        {
+          "id": 0,
+          "type": "CTRL_TYPE_WND",
+          "label": "Kanat Demo",
+          "parent": -1,
+          "x": { "coeff": [0,0,0,0,0,0,0,0], "offset": 180 },
+          "y": { "coeff": [0,0,0,0,0,0,0,0], "offset": 120 },
+          "width":  { "coeff": [0,0,1,0,0,0,0,0], "offset": 0 },
+          "height": { "coeff": [0,0,0,1,0,0,0,0], "offset": 0 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+控件位置与尺寸的通用公式是：
+
+```text
+像素值 = Σ(coeff[i] × 参考量[i]) + offset
+```
+
+八个参考量依次为屏幕宽、屏幕高、窗口宽、窗口高、控件高、字号、间隔、内边距。字段含义、控件类型、二进制格式与校验规则见 [docs/LAYOUT-FORMAT.md](docs/LAYOUT-FORMAT.md)。
+
+## 架构
+
+```text
+main.cpp
+  └─ Dispatch（调度层：初始化 / 每帧流程 / 退出判据 / 会话内存）
+       ├─ LayoutSolver     JSON / bin → 布局模型（FileMidState）
+       ├─ LayoutBuilder    控件信息与控件缓冲
+       ├─ GeometrySolver   参考量 → 像素几何
+       ├─ Layout           布局对象（线性或链式存储）
+       └─ LayoutRender     按 RenderApi 渲染一份布局
+            ├─ CtrlApi     控件绘制能力（Controls / Widgets）
+            └─ RenderApi   窗口 / 容器 / 光标 / 命中判定
+                 └─ ImGuiRender → ImGui → D3D11 → 窗口（ImGuiHost）
+
+DemoEvents（应用侧） ──绑定表──> UIEventHandler ──> CtrlInfo::pEventHandler
+```
+
+框架分为四层：
+
+| 层 | 目录 | 职责 |
+| :--- | :--- | :--- |
+| 基础 | `src/framework/base/` | 设计参考量、控件类型契约、控件缓冲、文本宽度、内存分配器、文件校验 |
+| 布局 | `src/framework/layout/` | 布局模型、JSON/bin 解析、几何解算、布局对象、渲染出口 |
+| 渲染 | `src/framework/render/` | 渲染能力接口；`imgui/` 下的宿主、D3D11 设施、控件库与部件层 |
+| 调度 | `src/framework/dispatch/` | 场景装配、事件绑定、每帧流程、退出判据、资源与路径 |
+
+`src/demo/` 是唯一业务代码；`src/main.cpp` 只做初始化、启动、主循环与释放的胶水。各层依赖方向、数据流与扩展点见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 ## 目录结构
 
+```text
+Kanat/
+├─ src/
+│  ├─ main.cpp                  进程入口
+│  ├─ Identity.h                项目身份唯一真源
+│  ├─ demo/                     Demo 事件层
+│  └─ framework/                框架内核
+│     ├─ base/                  基础设计量、控件契约、缓冲、文本宽度、内存、校验
+│     ├─ layout/                布局模型、解析、几何、布局对象、渲染出口
+│     ├─ render/                渲染能力接口与 ImGui / D3D11 实现
+│     └─ dispatch/              调度层、场景装配、事件、资源路径
+├─ docs/                        工程文档（架构、构建、格式、派生、体例）
+├─ third_party/                 离线依赖归档与第三方声明
+├─ tools/json2bin.py            布局文档 JSON → bin
+├─ Kanat.json                   Demo 布局文档
+├─ CMakeLists.txt               构建定义
+└─ README.md
 ```
-Kanat\
-├─ src\
-│  ├─ main.cpp                 进程入口（取宿主表 → 调度初始化 → 宿主启动 → 主循环 → 释放）
-│  ├─ Identity.h / .md         项目身份唯一真源（应用名 / 文档名 / 环境开关）
-│  ├─ demo\                    示例层：事件绑定表 DemoEvents
-│  └─ framework\               框架内核（GenUI 快照起点 + 本工程首产件）
-│     ├─ base\                 基础设计量、控件类型契约、控件缓冲、文本宽度、平台环境件
-│     │  ├─ mem\               内存设施：MemoryManager（分配器）与 AllocatorHub（会话分配器）
-│     │  └─ util\              纯算法件：FileCodec（CRC32 校验）
-│     ├─ render\               渲染能力表 + ImGui 宿主 / D3D11 / 控件库 / 部件层
-│     ├─ layout\               布局对象、中间态、解析、渲染出口、几何解算
-│     └─ dispatch\             调度层：事件注入、场景装配、每帧流程、退出判据、资源与路径
-├─ tools\json2bin.py           构建期 bin 生成（与 GenUI 同一格式与脚本）
-├─ Kanat.json                  布局文档（工程源）
-├─ CMakeLists.txt              工程定义
-└─ docs\                       工程纲领、范例判据、派生清单、接口文档体例
-```
 
-`src` 下每个源文件模块配一份接口文档（与源码同目录），共 28 份；framework 层的代码源自 GenUI 快照（已就地演进），本仓库保留单文档场景需要的最小子集。原 `src\common\` 层已于 2026-10-23 取消，五件全部归位 `framework`（评估见 `docs\EVAL-COMMON-LAYERING.md`）。
+`src/` 下每个源文件模块都在同目录配一份接口文档（共 28 份）；契约细节以这些文档为唯一真源，代码只保留函数的 `函数 / 描述` 两行注。
 
-## 与 GenUI 的关系
+## 文档
 
-| 层 | 本工程 | 说明 |
-| :--- | :--- | :--- |
-| 框架内核 / 基础设施 | 起点为 GenUI 快照 | 逐字节复制起点，随后就地演进（漂移登记见 `docs\DERIVE.md`），可随时回灌上游 |
-| 文档层 / 编辑器层 / 应用层 / 宿主层 | 不引入 | 单布局场景不需要条目表、编辑命令、文件对话框与多文档协调 |
-| 调度层 | 本工程形态 | `Dispatch` 是 GenUI `AppHost` 的单窗口精简形态，建窗与消息循环归 `ImGuiHost` |
-| 示例层 | `demo\DemoEvents` | 唯一业务代码：两张事件处理函数 |
+| 文档 | 内容 |
+| :--- | :--- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 分层、数据流、能力表、事件模型、几何与内存模型、扩展点 |
+| [docs/BUILD.md](docs/BUILD.md) | 构建、运行、Debug、CI 与排障 |
+| [docs/LAYOUT-FORMAT.md](docs/LAYOUT-FORMAT.md) | 布局文档字段、控件类型、尺寸因子、bin 格式 |
+| [docs/DERIVE.md](docs/DERIVE.md) | 从本仓库派生新应用 |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | 编码风格、注释与提交约定 |
+| [docs/INTERFACE-DOC-STYLE.md](docs/INTERFACE-DOC-STYLE.md) | 接口文档体例 |
+| `src/**/<模块>.md` | 逐模块接口契约 |
 
-派生新项目的清单与步骤见 `docs\DERIVE.md`；工程纲领与范例判据见 `docs\CHARTER.md`、`docs\EXAMPLES.md`。
+## Demo 说明
+
+- 一份单布局文档：窗口、标题栏、内容容器，以及 12 枚内容控件。
+- 标题栏按住拖动：事件把窗口期望坐标写入布局的窗口位置记录，渲染侧在下一次取得该窗口时结算几何。
+- 事件委托：容器绑定 `DEMO_ENTRUST_PROBE`；子按钮用 `CTRL_EVENT_ENTRUST_PARENT` 把自己的事件委托给父容器。
+- 布局来源：缺省加载链、内存缓冲、布局模型、布局对象数组、延迟装配五种入口，详见 `src/framework/dispatch/Dispatch.md`。
 
 ## 已知限制
 
-- 无编辑器能力：不能增删控件、改类型或写盘。
+- 没有编辑器能力：不能增删控件、修改类型或写回文档。
+- Demo 只演示单窗口；框架支持多标准窗口与嵌套布局，但未提供完整范例。
 - 交互观感（拖动、悬停、输入法）需在本机人工复核。
-- 控件绘制与几何口径以框架内核为准，本工程不另做特例。
+- 仅支持 Windows 与 MSVC；渲染后端目前只有 ImGui + D3D11。
+
+## 许可
+
+MIT License，见 [LICENSE](LICENSE)。第三方组件许可见 [third_party/README.md](third_party/README.md)。

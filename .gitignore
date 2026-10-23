@@ -1,4 +1,4 @@
-# 构建输出(工程文件由 cmake 生成; 产物与中转件不入库)
+# Build output
 out/
 *.slnx
 *.vcxproj
@@ -11,19 +11,24 @@ out/
 *.lib
 *.exp
 *.res
+*.bin
 
-# 依赖还原缓存与临时件
-nuget-packages/
+# IDE and local workspaces
+.vs/
+.idea/
+CMakeUserPresets.json
+
+# Temporary files
 _tmp/
 temp/
 drafts/
-
-# 取证归档(逐轮证据不入库)
-docs/archive/
-
-# 手动备份模式(版本管理交给 Git, 不再落盘备份件)
+*.log
 *.bak
 *.bak-*
 *.old
 *.pre-*
 *副本*
+
+# OS metadata
+Thumbs.db
+.DS_Store
