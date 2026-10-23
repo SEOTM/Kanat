@@ -19,6 +19,7 @@ Kanat 是一个 Windows 原生的声明式界面框架。应用用一份布局�
 | :--- | :--- |
 | 系统 | Windows 10 / 11 x64 |
 | 编译器 | Visual Studio 2022（17.10+）或 Visual Studio 2026，安装“使用 C++ 的桌面开发”工作负载 |
+| 语言标准 | C++20（`CMakeLists.txt` 强制；见 [docs/BUILD.md](docs/BUILD.md)） |
 | CMake | 3.20 或更高 |
 | Python | 3.8+（可选；用于构建期生成 `Kanat.bin`，缺失时直接复制 JSON） |
 
