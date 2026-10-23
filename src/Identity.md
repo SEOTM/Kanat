@@ -46,7 +46,6 @@
 | 常量 | 值 | 说明 |
 | --- | --- | --- |
 | `IDENTITY_EVENT_DRAG_WINDOW` | `"DEMO_DRAG_WINDOW"` | 标题栏按住拖动窗口的业务事件名。事件名是"布局文档 `event` 字段 ↔ 绑定表"的成对契约: 改名须同时改布局文档, 只改一侧即静默失绑。 |
-| `IDENTITY_EVENT_ENTRUST_PROBE` | `"DEMO_ENTRUST_PROBE"` | 事件委托演示的父事件名(容器绑定它)。子控件以 `CTRL_EVENT_ENTRUST_PARENT` 委托到该事件, 到达自证见 `DemoEvents::OnEntrustProbe`。 |
 
 ---
 

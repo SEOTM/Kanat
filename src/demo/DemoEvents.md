@@ -2,14 +2,13 @@
 
 ## 概述
 
-Demo 的事件层:事件名到处理函数的绑定表,以及本 Demo 的两条事件(标题栏拖动窗口 · 事件委托演示)。
+Demo 的事件层:事件名到处理函数的绑定表,以及本 Demo 的唯一事件(标题栏拖动窗口)。
 
 绑定表的内容属应用侧,而框架层的 `UIEventHandler` 不得反向依赖应用侧,因此由 `Dispatch` 在启动期经
 函数指针取得本表并注入框架侧解析器;本模块只提供表与处理器,不持有解析器状态。本层不认识窗口句柄:拖动只把
 "窗口期望坐标"记进布局的窗口位置记录(WND 控件的 `position`),窗口的实质移动归框架层(渲染出口取得渲染目标时结算)。
 
-本 Demo 保留两条绑定:标题栏拖动窗口,以及事件委托演示的父事件(容器绑定它,子控件以
-`CTRL_EVENT_ENTRUST_PARENT` 委托到它);其余 `event` 名一律解析为空绑定(控件无响应)。
+本 Demo 只保留一条绑定:标题栏拖动窗口;其余 `event` 名一律解析为空绑定(控件无响应)。
 
 本模块包含以下编程接口:
 
@@ -17,9 +16,8 @@ Demo 的事件层:事件名到处理函数的绑定表,以及本 Demo 的两条�
 
 | 函数 | 说明 |
 | --- | --- |
-| `GetBindings` | 取本 Demo 的事件绑定表(两条:标题栏拖动窗口 · 事件委托演示的父事件)。 |
+| `GetBindings` | 取本 Demo 的事件绑定表(一条:标题栏拖动窗口)。 |
 | `OnDragWindow` | 拖动窗口的事件处理器:标题栏按住拖动 = 把窗口期望坐标记进窗口位置记录。 |
-| `OnEntrustProbe` | 事件委托演示的父事件处理器:子控件(委托父容器)的点击经父容器的事件到达这里。 |
 
 本模块不定义公开类型与公开常量。
 
@@ -117,62 +115,6 @@ VOID OnDragWindow(VOID* obj, uint64_t oper, uint64_t param, void* data);
 
 ---
 
-## OnEntrustProbe 函数 (DemoEvents)
-
-事件委托演示的父事件处理器:子控件(委托父容器)的点击经父容器的事件到达这里。
-
-### 语法
-
-```cpp
-VOID OnEntrustProbe(VOID* obj, uint64_t oper, uint64_t param, void* data);
-```
-
-### 参数
-
-`[in] obj`
-
-类型: **VOID\***
-
-触发本事件的控件对象(`CtrlInfo*`)。对委托者是**委托者本身**(不是父容器)—— 处理函数来自父,
-控件对象仍是子控件,本处理器用它打印到达自证。
-
-`[in] oper`
-
-类型: **uint64_t**
-
-规范操作码。本处理器只认公共段的 `OPER_COMMON_CLICKED`(完整单击);其余操作码直接返回。
-
-`[in] param`
-
-类型: **uint64_t**
-
-通用参数槽。本演示不使用(传入后忽略)。
-
-`[in] data`
-
-类型: **void\***
-
-该控件的缓冲。本处理器不需要,传入后忽略。
-
-### 返回值
-
-类型: **VOID**
-
-此函数不返回值。
-
-### 注解
-
-**演示链路**:`Kanat.json` 的容器(`##CONTAINER`)绑定 `DEMO_ENTRUST_PROBE`;委托按钮
-(`##DEMO_ENTRUST`,按钮类型)声明 `parent` = 容器的 `id` 且 `event` = `CTRL_EVENT_ENTRUST_PARENT`。
-装配期 `LayoutBuilder::ResolveEntrustedEvents` 把容器的处理函数写给该按钮 ⇒ 点击该按钮时到达本处理器,
-打印 `控件 id=14 label=##DEMO_ENTRUST`。
-
-到达自证只打印、不改任何状态(无人值守运行不点击 ⇒ 无额外输出,日志基线不受影响);装配期"委托已解析"
-的客观判据是场景自证行中的委托枚数,见 `Dispatch` 的场景载入日志(`DispatchScene.cpp`)。
-
-
----
-
 ## 要求
 
 | 要求 | 值 |
@@ -180,6 +122,6 @@ VOID OnEntrustProbe(VOID* obj, uint64_t oper, uint64_t param, void* data);
 | 标头 | `demo/DemoEvents.h`(`src\demo\DemoEvents.h`) |
 | 实现 | `src\demo\DemoEvents.cpp` |
 | 命名空间 | `DemoEvents` |
-| 依赖 | `Identity.h`(事件名与日志前缀) · `framework/dispatch/UIEventHandler.h` · `framework/base/ControlSpec.h` · `framework/dispatch/Dispatch.h` · `windows.h` · `ucrt` |
+| 依赖 | `Identity.h`(事件名与日志前缀) · `framework/dispatch/UIEventHandler.h` · `framework/base/ControlSpec.h` · `framework/dispatch/Dispatch.h` · `windows.h` |
 | 平台 | Windows 全版本 |
 | 线程安全 | 否;在框架层的帧流程内被调用,须与布局访问串行 |

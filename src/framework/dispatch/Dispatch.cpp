@@ -61,7 +61,7 @@ BOOL Dispatch::Init(CONST HostApi* pHost, CONST DispatchConfig& cfg, BindingsFun
 	{
 		CONST UIEventHandler::EventBinding* pBindings = pfnBindings(&nBindings);
 		UIEventHandler::SetBindings(pBindings, nBindings);
-		Log("事件绑定表: %zu 条(拖拽窗口 · 事件委托演示)\n", nBindings);
+		Log("事件绑定表: %zu 条\n", nBindings);
 	}
 	if (!LoadScene(cfg, source))
 	{
@@ -86,8 +86,8 @@ BOOL Dispatch::Init(CONST HostApi* pHost, CONST DispatchConfig& cfg, BindingsFun
 		{
 			data->dwAutoCloseMs = (DWORD)atoi(szEnv);
 		}
-		Log("单窗口就绪: 渲染 = 声明式布局路径(LayoutRender::RenderBase; 目标窗口由渲染器决定)\n");
-		Log("交互: 按住标题栏拖动窗口; ESC 或 Alt+F4 退出\n");
+		Log("窗口就绪: 渲染 = 声明式布局路径(LayoutRender::RenderBase; 目标窗口由渲染器决定)\n");
+		Log("交互: ESC 或 Alt+F4 退出\n");
 	}
 	data->qwStartTick = GetTickCount64();
 	data->bExit = FALSE;

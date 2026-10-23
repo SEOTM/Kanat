@@ -30,18 +30,17 @@ git init
 | 自动退出环境变量 | `IDENTITY_ENV_AUTOCLOSE` | `DEMO_AUTOCLOSE_MS` | 同上 |
 | 日志前缀 | `IDENTITY_LOG_PREFIX` | `DEMO` | 日志行首 `[DEMO]` |
 | 拖动窗口事件名 | `IDENTITY_EVENT_DRAG_WINDOW` + 布局文档 `event` | `DEMO_DRAG_WINDOW` | 只改一侧会静默失绑 |
-| 委托演示事件名 | `IDENTITY_EVENT_ENTRUST_PROBE` + 布局文档 `event` | `DEMO_ENTRUST_PROBE` | 同上 |
 | 布局名 / 标签 | 布局文档的 `layouts[0].name` / `label` | `DemoMain` / `暗渠框架 Demo` | 只影响日志与标识 |
-| 业务事件表 | `src/demo/DemoEvents.cpp` | 两条演示事件 | 换成自己的处理函数 |
+| 业务事件表 | `src/demo/DemoEvents.cpp` | 一条演示事件(拖动窗口) | 换成自己的处理函数 |
 
-`src/Identity.h` 共 8 个常量：3 个文档 / 运行开关，3 个应用与日志身份，2 个事件名。
+`src/Identity.h` 共 7 个常量：3 个文档 / 运行开关，3 个应用与日志身份，1 个事件名。
 
 ## 3. 建议改动
 
 - 把 `src/demo/` 改名为业务名（如 `src/app/`），并同步 `#include` 与 `Dispatch::Init` 传入的绑定表函数；
 - 把 `Kanat.json` 改名为 `App.json`，重写布局与控件；改名时同步 `Identity.h` 的 `IDENTITY_DOC_NAME` 与构建后的文档复制步骤；
 - 更新 `README.md` 与 `docs/` 中的项目名、示例路径；
-- 如果不再需要事件委托演示，删除 `CTRL_EVENT_ENTRUST_PARENT` 相关控件与处理器；
+- 事件绑定表只保留需要的业务事件;删除事件时,布局文档的 `event` 与绑定表条目成对移除,避免静默失绑;
 - 如果产品只需要单窗口，保留 `DispatchConfig::dwWndCount = 1`；多窗口时按 `ImGuiHost::MAX_WND`（8）声明。
 
 ## 4. 派生后自证
@@ -56,10 +55,10 @@ git init
 启动日志示例：
 
 ```text
-[DEMO] 场景载入: ...\Kanat.json (布局=DemoMain 控件=15 窗口=...)
-[DEMO] 事件绑定: 3 枚控件已绑定处理器(其中委托父容器 1 枚, 已解析 1 枚)
-[DEMO] 控件层次: 0=0 1=0 ...
-[DEMO] 控件坐标: 0=(180,120) ...
+[DEMO] 场景载入: ...\Kanat.json (布局=DemoMain 控件=3 窗口=...)
+[DEMO] 事件绑定: 1 枚控件已绑定处理器(其中委托父容器 0 枚, 已解析 0 枚)
+[DEMO] 控件层次: 0=0 1=0 2=0
+[DEMO] 控件坐标: 0=(180,120) 1=(0,0) 2=(0,54) ...
 ```
 
 ## 5. 不要改的部分
