@@ -15,7 +15,7 @@
 
 | 项 | 约定 |
 | :--- | :--- |
-| 语言 | C++20，MSVC，Windows 专有 |
+| 语言 | C++17，MSVC，Windows 专有（C++20 亦可编译） |
 | 缩进 | Tab |
 | 大括号 | Allman（左括号独占行） |
 | 类型 / 函数 | PascalCase；文件内静态函数也使用 PascalCase |
@@ -32,7 +32,7 @@
 | 内存 | 所有权明确、成对释放；会话内存取自 `Arena` / `MemPool` |
 | 运行库 | 静态 `/MT`（Debug 为 `/MTd`） |
 
-`CMakeLists.txt` 已开启 `/utf-8 /Zc:char8_t-`、`UNICODE`、`_AMD64_` 与 C++20；新文件不需要重复这些设置。
+`CMakeLists.txt` 已开启 `/utf-8 /Zc:char8_t-`、`UNICODE`、`_AMD64_` 与 C++17；新文件不需要重复这些设置。
 
 ## 3. 注释约定
 

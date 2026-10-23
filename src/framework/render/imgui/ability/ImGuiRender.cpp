@@ -28,22 +28,22 @@ static INT64 GetDrawVtxCount();
 
 static CONST RenderApi RenderApiTable =
 {
-	.AcquireWnd = AcquireWnd,
-	.OpenWnd = OpenWnd,
-	.CloseWnd = CloseWnd,
-	.BringWndToFront = BringWndToFront,
-	.OpenPanel = OpenPanel,
-	.ClosePanel = ClosePanel,
-	.SetCursor = SetCursor,
-	.GetContentOrigin = GetContentOrigin,
-	.PushId = PushId,
-	.PushPtrId = PushPtrId,
-	.PopId = PopId,
-	.TakeItemId = TakeItemId,
-	.AddHitArea = AddHitArea,
-	.IsHitClicked = IsHitClicked,
-	.IsRectClicked = IsRectClicked,
-	.GetDrawVtxCount = GetDrawVtxCount,
+	AcquireWnd,
+	OpenWnd,
+	CloseWnd,
+	BringWndToFront,
+	OpenPanel,
+	ClosePanel,
+	SetCursor,
+	GetContentOrigin,
+	PushId,
+	PushPtrId,
+	PopId,
+	TakeItemId,
+	AddHitArea,
+	IsHitClicked,
+	IsRectClicked,
+	GetDrawVtxCount,
 };
 
 // 函数: toImVec2

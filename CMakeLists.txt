@@ -7,14 +7,14 @@ set(APP_DOC_NAME "Kanat.json")
 project(${APP_PROJECT_NAME} LANGUAGES CXX)
 
 if(MSVC)
-	# Sources and documents are UTF-8 without BOM; /Zc:char8_t- keeps u8"..." as char*.
+	# Sources are UTF-8 without BOM; /Zc:char8_t- keeps u8"..." as char* when built as C++20.
 	add_compile_options(/utf-8 /Zc:char8_t-)
 endif()
 
 # Static CRT (/MT, /MTd), self-contained binaries.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Native dependencies are vendored as an offline NuGet archive: Dear ImGui and RapidJSON.

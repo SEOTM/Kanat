@@ -9,23 +9,23 @@
 | CMake | 3.20 或更高（`file(ARCHIVE_EXTRACT)` 需要 3.18+） |
 | Python | 3.8+，可选；用于构建期生成 `Kanat.bin` |
 
-框架使用 C++20、静态运行库 `/MT`、Unicode 与 `_AMD64_`，不依赖 vcpkg、NuGet 源或网络。
+框架使用 C++17、静态运行库 `/MT`、Unicode 与 `_AMD64_`，不依赖 vcpkg、NuGet 源或网络。
 
 ### 语言标准
 
-当前源码按 **C++20** 编译，`CMakeLists.txt` 的 `CMAKE_CXX_STANDARD` 固定为 20。
+当前源码按 **C++17** 编译，`CMakeLists.txt` 的 `CMAKE_CXX_STANDARD` 设为 17。
 
-源码中唯一用到的 C++20 特性是 `RenderApi` 能力表的指定初始化器（`src/framework/render/imgui/ability/ImGuiRender.cpp` 的 `RenderApiTable`）。其余现代特性属于 C++17：`inline constexpr` 变量、`if constexpr` 与 `template <auto>`。
+源码使用的现代特性均属 C++17：`inline constexpr` 变量、`if constexpr`、`template <auto>`；没有使用 C++20 专属特性。`RenderApi` 能力表按成员声明顺序初始化，因此 C++17 可直接编译。
 
 兼容性结论（本机实测）：
 
 | 标准 | 结果 |
 | :--- | :--- |
-| C++20 | 通过，0 警告 0 错误 |
-| C++17 | 仅因上述指定初始化器失败（C7555）；改为按成员声明顺序初始化后可通过 |
+| C++17 | 通过，0 警告 0 错误（当前配置） |
+| C++20 | 通过，0 警告 0 错误（保留 `/Zc:char8_t-`，`u8"..."` 仍为 `char*`） |
 | C++14 | 失败：`inline constexpr` 变量需要 C++17（C7525） |
 
-若目标工具链只支持 C++17，把 `RenderApiTable` 改为按成员顺序的聚合初始化，并把 `CMAKE_CXX_STANDARD` 改为 17 即可；C++14 需要同时改写 `inline` 变量、`if constexpr`、`template <auto>` 等多处特性，不建议作为目标。
+C++14 需要同时改写 `inline` 变量、`if constexpr`、`template <auto>` 等多处特性，不作为支持目标。
 
 ## 2. 依赖
 
