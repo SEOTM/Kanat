@@ -6,13 +6,11 @@ Kanat 是一个 Windows 原生的声明式界面框架。应用用一份布局�
 
 ## 项目沿革
 
-本框架的机制源自其早期应用 [VideoCut](https://github.com/SEOTM/VideoCut)。[GenUI](GENUI_GITHUB_URL) 是该框架的自举编辑器应用，它在此基础上反复尝试模块间的耦合方式：断开反向依赖、抽出 `RenderApi` / `CtrlApi` 能力表、按 `base` / `render` / `layout` / `dispatch` 分层归位、剥离应用语义并移除非声明式回退路径。框架机制在 GenUI 阶段基本定型，此后以细节完善（几何、圆角、配色、文本、拖拽、提示）与耦合治理为主，新增功能很少。该框架的最小演示子集 Demo 项目随后定名 Kanat。
-
-<!-- GenUI 仓库地址待补：把 GENUI_GITHUB_URL 替换为实际 URL -->
+本框架的机制源自其早期应用 [VideoCut](https://github.com/SEOTM/VideoCut)。[Kanat UI Generate](https://github.com/SEOTM/KanatUI-Generate)（曾用名 GenUI）是该框架的自举编辑器应用，它在此基础上反复尝试模块间的耦合方式：断开反向依赖、抽出 `RenderApi` / `CtrlApi` 能力表、按 `base` / `render` / `layout` / `dispatch` 分层归位、剥离应用语义并移除非声明式回退路径。框架机制在 Kanat UI Generate 阶段基本定型，此后以细节完善（几何、圆角、配色、文本、拖拽、提示）与耦合治理为主，新增功能很少。该框架的最小演示子集 Demo 项目随后定名 Kanat。
 
 ## AI 使用
 
-从 GenUI 起，实现、重构、文档与验证由 AI 辅助完成，包括搬迁与接口化、像素与日志的逐字节零漂移验证，以及控件与部件、宿主与构建发布等模块的优化与适配。需求、模型、关键拍板、手工修改与验收由人工完成。所有产物经双配置零警告、逐字节基线与负向对照检验，并经人工审查与验收，内容由维护者负责。
+从 Kanat UI Generate（曾用名 GenUI）起，实现、重构、文档与验证由 AI 辅助完成，包括搬迁与接口化、像素与日志的逐字节零漂移验证，以及控件与部件、宿主与构建发布等模块的优化与适配。需求、模型、关键拍板、手工修改与验收由人工完成。所有产物经双配置零警告、逐字节基线与负向对照检验，并经人工审查与验收，内容由维护者负责。
 
 ## 特性
 
