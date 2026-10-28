@@ -93,7 +93,7 @@ dispatch（调度、场景装配、事件）
 
 父链是三种推导的共同输入：
 
-- **层次**：`CtrlInfo::nLayer` 由 `Layout::DeriveCtrlLayers` 按 `parentID` 链递推；结构件恒为 0；域类控件逐层下沉，按钮与复选框逐层上浮，其余继承父层。
+- **层次**：`CtrlInfo::nLayer` 由 `Layout::DeriveCtrlLayers` 按 `parentID` 链递推；窗口非客户区控件恒为 0；域类控件逐层下沉，按钮与复选框逐层上浮，其余继承父层。
 - **坐标**：内容控件的有效坐标 = 声明坐标 + 父链上各控件的声明坐标之和；`Layout::DeriveCtrlPositions` 可反复重推，因为 `posDeclared` 在几何解算后不再改写。
 - **事件**：`CTRL_EVENT_ENTRUST_PARENT` 让子控件的事件绑定到父容器（按 `parentID` 上溯）的处理函数。
 

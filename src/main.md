@@ -7,7 +7,7 @@ Kanat(暗渠框架)的进程入口。本文件只做胶水: 应用初始化 → 
 
 单窗口模式:调度层为 `framework\dispatch\Dispatch`(事件绑定注入 / 场景装配 / 投影配色 / 每帧流程 / 退出判据),
 渲染宿主为 `framework\render\imgui\ImGuiHost`(窗口类与建窗 / ImGui 与 D3D11 设施 / 消息循环 / 窗口过程), 事件绑定表为
-`demo\DemoEvents::GetBindings`。界面 = 一份布局对象的声明式渲染(结构件 `WND` / `TITLE` / `CNTR` + 内容控件);
+`demo\DemoEvents::GetBindings`。界面 = 一份布局对象的声明式渲染(窗口非客户区控件 `WND` / `TITLE` / `CNTR` + 内容控件);
 事件 = 标题栏按住拖动窗口; 无编辑器能力(不增删 / 不改类型 / 不写盘 / 无文件对话框)。
 
 本模块包含以下编程接口:
