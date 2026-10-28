@@ -157,7 +157,7 @@ dispatch（调度、场景装配、事件）
 
 控件层逐枚无状态被调用，不持有控件数据，不分配控件对象，不遍历布局。控件缓冲的装配与回收在 `CtrlBuffer` 与 `LayoutBuilder`，不在绘制路径。
 
-控件类型共 22 种公开类型（另有 `CTRL_TYPE_UNKNOWN` 与 `CTRL_TYPE_INVALID` 两个哨兵），其中 20 种有绘制实现；`CTRL_TYPE_LIST` 与 `CTRL_TYPE_LIST_TIMESPAN` 当前只登记类型身份，既无缓冲也无像素。完整清单、绘制语义与事件回传见 `src/framework/render/imgui/control/Controls.md`。
+控件类型共 23 种公开类型（另有 `CTRL_TYPE_UNKNOWN` 与 `CTRL_TYPE_INVALID` 两个哨兵），其中 22 种有绘制实现；`CTRL_TYPE_LIST` 当前只登记类型身份，既无缓冲也无像素。完整清单、绘制语义与事件回传见 `src/framework/render/imgui/control/Controls.md`。
 
 ## 8. 事件模型
 

@@ -149,10 +149,11 @@ Kanat 的界面由布局文档声明。文档有两种等价形态：
 | `CTRL_TYPE_LIST` | 列表（已登记；当前无缓冲、无绘制实现） | 无缓冲 |
 | `CTRL_TYPE_LIST_INPUT` | 输入动作行组成的列表 | `ListBuffer`，行块为 `INPUT_ACTION` |
 | `CTRL_TYPE_LIST_COMBO` | 下拉行组成的列表 | `ListBuffer`，行块为文本 |
-| `CTRL_TYPE_LIST_TIMESPAN` | 时间段列表（已登记；当前无缓冲、无绘制实现） | 无缓冲 |
-| `CTRL_TYPE_TIMEBAR` | 时间条；起止时码显示，无交互 | 无缓冲 |
+| `CTRL_TYPE_LIST_TIMESPAN` | 时间片列表；行显示起止时码、行内删除钮、行选中与滚轮翻动 | `ListBuffer`，行块为 `TimeSpanItem`，容量 128 |
+| `CTRL_TYPE_TIMEBAR` | 可编辑时间条；提示文本 + 时 / 分 / 秒 / 毫秒四段输入 | `CtrlTimeBarData` |
 | `CTRL_TYPE_RENDER` | 渲染面；有纹理等比居中，无纹理画占位面 | `CtrlRenderData` |
 | `CTRL_TYPE_SLIDER` | 单手柄滑动条 | `CtrlSliderData` |
+| `CTRL_TYPE_SLIDER_RANGE` | 双手柄范围滑动条（区间 + 值域，左右手柄分别回传） | `CtrlSliderRangeData` |
 | `CTRL_TYPE_COMBO` | 下拉框 | `CtrlComboData` |
 | `CTRL_TYPE_COMBO_ACTION` | 下拉段 + 右段按钮 | `CtrlComboData` |
 | `CTRL_TYPE_PROG` | 进度显示 | `CtrlProgData` |

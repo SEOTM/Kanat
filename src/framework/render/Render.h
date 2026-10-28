@@ -156,4 +156,10 @@ struct HostApi
 	VOID (*GetRenderStats)(DWORD* pdwSegments, DWORD* pdwCmdLists, INT64* pllVtx, INT64* pllIdx);
 
 	VOID (*GetResizeStats)(DWORD* pdwCount, DWORD* pdwLastW, DWORD* pdwLastH);
+
+	VOID (*SetAppIcon)(VOID* hIcon);
+
+	VOID* (*GetNativeDevice)();
+
+	VOID* (*GetNativeDeviceContext)();
 };

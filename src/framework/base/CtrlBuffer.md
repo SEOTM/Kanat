@@ -44,6 +44,9 @@ C 运行时,**不依赖任何上层**(render / layout / dispatch),也不含任�
 | `CtrlRenderData` | 渲染面控件缓冲结构(纹理视图 + 像素尺寸,类型擦除)。 |
 | `CtrlCheckData` | 复选框控件缓冲结构(勾选态 + 内联显示文字)。 |
 | `CtrlSliderData` | 滑动条控件缓冲结构(手柄当前值 + 值域)。 |
+| `CtrlSliderRangeData` | 双手柄范围滑动条缓冲结构(当前区间 + 值域)。 |
+| `TimeSpanItem` | 时间片列表的行块(起止毫秒)。 |
+| `CtrlTimeBarData` | 可编辑时间条缓冲结构(提示文本 + 当前毫秒 + 上限毫秒)。 |
 | `CtrlTextRange` | 文本通道的取址结果(首址 + 容量)。 |
 
 ### 常量
@@ -56,6 +59,7 @@ C 运行时,**不依赖任何上层**(render / layout / dispatch),也不含任�
 | `CTRL_INPUT_ACTION_ACTION` | `64` | 输入动作控件载荷内按钮文本区的字节数(含结尾 `\0`)。 |
 | `CTRL_INPUT_ACTION_SPLIT` | `64` | 载荷内按钮文本区与输入文本区的分割位置(8 字节对齐)。 |
 | `CTRL_INPUT_ACTION_BUF` | 编译期算出(`sizeof(CtrlInputActionData) + 64 + 256`) | 输入动作控件的缓冲总字节数。 |
+| `LIST_TIMESPAN_CAPACITY` | `128` | 时间片列表的行容量(行块 `TimeSpanItem`)。 |
 | `CTRL_DEFAULT_ACTION_BTN` | `u8"动作"` | 下拉动作控件右段按钮的缺省文案。 |
 | `CTRL_DEFAULT_BROWSE_BTN` | `u8"浏览"` | 输入动作控件按钮文本区的缺省文案。 |
 | `CTRL_DEFAULT_COMBO_ITEM` | `u8"选项 1"` | 下拉类控件未获选项文本时的缺省选项。 |
@@ -690,10 +694,14 @@ BOOL PrepareCtrlBuffer(
 
 ### 注解
 
-分派顺序(自上而下,先特例后分组):不建缓冲的类型(未知 / 未使用槽位 / `LIST` / `TIMEBAR` /
-`LIST_TIMESPAN`)→ `INPUT_ACTION`(定长头 + 按钮文本区 + 输入文本区)→ `CHECKBOX`(勾选态 + 显示文字)→
+分派顺序(自上而下,先特例后分组):不建缓冲的类型(未知 / 未使用槽位 / `LIST`)→
+`LIST_TIMESPAN`(`ListBuffer` 头 + `TimeSpanItem` 行块 × `LIST_TIMESPAN_CAPACITY`)→
+`INPUT_ACTION`(定长头 + 按钮文本区 + 输入文本区)→ `CHECKBOX`(勾选态 + 显示文字)→
 `INPUT_MULTI`(4096 字节,长文本)→ 文本类(`CTRL_TEXT_BUF`)→ 列表类(`ListBuffer` 头 + 特殊行块 +
-项目块 × 容量)→ 其余定长结构(`INPUT_REAL` / `INPUT_NUMERIC` / `COMBO*` / `SLIDER` / `PROG` / `RENDER`)→ 兜底失败。
+项目块 × 容量)→ 其余定长结构(`INPUT_REAL` / `INPUT_NUMERIC` / `COMBO*` / `SLIDER` / `SLIDER_RANGE` /
+`TIMEBAR` / `PROG` / `RENDER`)→ 兜底失败。
+
+`TIMEBAR` 的提示文本在装配期从文档文本复制进缓冲的 `szHint`,渲染端只读该字段,不再回看布局文档。
 
 顺序不可随意调整:`INPUT_MULTI` 必须在通用文本类分支之前(否则长文本被 256 字节截断);
 `CHECKBOX` 必须在文本类之前(其文字是结构内字段,不参与文本往返通道)。
@@ -704,7 +712,7 @@ BOOL PrepareCtrlBuffer(
 
 ## WriteCtrlTextToBuffer 函数 (CtrlBuffer)
 
-把中间态文本按该控件的缓冲容量写回其文本区(结构件"外观信息"刷新用)。
+把中间态文本按该控件的缓冲容量写回其文本区(窗口非客户区控件"外观信息"刷新用)。
 
 ### 语法
 
@@ -721,7 +729,7 @@ VOID WriteCtrlTextToBuffer(
 
 类型: **CtrlInfo\***
 
-目标控件;`NULL` 直接返回。无文本缓冲的控件(数值类 / 结构件 / 未知类型)同样直接返回(安全忽略)。
+目标控件;`NULL` 直接返回。无文本缓冲的控件(数值类 / 窗口非客户区控件 / 未知类型)同样直接返回(安全忽略)。
 
 `[in] text`
 

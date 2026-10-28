@@ -31,7 +31,8 @@
 	ENTRY(CTRL_TYPE_COMBO_ACTION,  "CTRL_TYPE_COMBO_ACTION")  \
 	ENTRY(CTRL_TYPE_PROG,          "CTRL_TYPE_PROG")           \
 	ENTRY(CTRL_TYPE_CHECKBOX,      "CTRL_TYPE_CHECKBOX")       \
-	ENTRY(CTRL_TYPE_LIST_TIMESPAN, "CTRL_TYPE_LIST_TIMESPAN")
+	ENTRY(CTRL_TYPE_LIST_TIMESPAN, "CTRL_TYPE_LIST_TIMESPAN")   \
+	ENTRY(CTRL_TYPE_SLIDER_RANGE,  "CTRL_TYPE_SLIDER_RANGE")
 
 enum CtrlType
 {
@@ -107,8 +108,8 @@ inline BOOL CtrlEventIsEntrustParent(LPCSTR eventname)
 }
 
 constexpr INT32 PROJ_LAYER_BACKGROUND = 8;
-constexpr INT32 PROJ_LAYER_MIN  = 1;
-constexpr INT32 PROJ_LAYER_MAX  = 16;
+constexpr INT32 PROJ_LAYER_MIN = 1;
+constexpr INT32 PROJ_LAYER_MAX = 16;
 
 // 函数: CtrlLayerOf
 // 描述: 由控件自身的层次值得出投影层号(全库唯一换算口径)
@@ -130,7 +131,7 @@ enum CTRL_LAYER_STEP
 {
 	CTRL_LAYER_STEP_DOWN = -1,
 	CTRL_LAYER_STEP_FLAT = 0,
-	CTRL_LAYER_STEP_UP   = 1
+	CTRL_LAYER_STEP_UP = 1
 };
 
 // 函数: CtrlLayerStep
@@ -156,6 +157,7 @@ inline INT32 CtrlLayerStep(CtrlType type)
 	case CTRL_TYPE_COMBO_ACTION:
 	case CTRL_TYPE_RENDER:
 	case CTRL_TYPE_SLIDER:
+	case CTRL_TYPE_SLIDER_RANGE:
 		return (INT32)CTRL_LAYER_STEP_DOWN;
 	default:
 		return (INT32)CTRL_LAYER_STEP_FLAT;
@@ -223,10 +225,13 @@ inline BOOL CtrlTypeIsRawGraphic(CtrlType type)
 }
 
 // 函数: CtrlTypeHandlesClickItself
-// 描述: 该控件类型是否由控件库自身在点击时派发 OPER_COMMON_CLICKED(⇒ 渲染出口不得再判一次,
+// 描述: 该控件类型是否由控件库独占其输入项的点击处理(⇒ 渲染出口不得再按通用点击判一次;
+//       本判据既含"点击即派发 CLICKED"的类型, 也含"点击只按自身语义派发提交/变更码"的类型)
 inline BOOL CtrlTypeHandlesClickItself(CtrlType type)
 {
-	return (type == CTRL_TYPE_TEXT || type == CTRL_TYPE_RECT || type == CTRL_TYPE_BUTTON) ? TRUE : FALSE;
+	return ((type == CTRL_TYPE_TEXT) || (type == CTRL_TYPE_RECT) || (type == CTRL_TYPE_BUTTON) ||
+		(type == CTRL_TYPE_LIST_TIMESPAN) || (type == CTRL_TYPE_TIMEBAR) ||
+		(type == CTRL_TYPE_SLIDER_RANGE)) ? TRUE : FALSE;
 }
 
 // 函数: CtrlTypeIsTextKind
@@ -242,8 +247,8 @@ namespace OperCode
 {
 	enum OPER_SEG
 	{
-		OPER_SEG_COMMON  = 0,
-		OPER_SEG_OWN     = 1,
+		OPER_SEG_COMMON = 0,
+		OPER_SEG_OWN = 1,
 		OPER_SEG_PAYLOAD = 2,
 		OPER_SEG_COUNT
 	};
@@ -290,30 +295,30 @@ namespace OperCode
 	}
 }
 
-constexpr uint64_t OPER_SEG_MASK_COMMON  = 0x000000000000FFFF;
-constexpr uint64_t OPER_SEG_MASK_OWN     = 0x00000000FFFF0000;
+constexpr uint64_t OPER_SEG_MASK_COMMON = 0x000000000000FFFF;
+constexpr uint64_t OPER_SEG_MASK_OWN = 0x00000000FFFF0000;
 constexpr uint64_t OPER_SEG_MASK_PAYLOAD = 0xFFFFFFFF00000000;
 
 constexpr uint64_t OPER_NONE = 0x0;
 
 constexpr uint16_t OPER_COMMON_PAYLOAD_SHIFT = 14;
-constexpr uint16_t OPER_COMMON_PAYLOAD_MASK  = 0xC000;
-constexpr uint16_t OPER_COMMON_CODE_MASK     = 0x3FFF;
+constexpr uint16_t OPER_COMMON_PAYLOAD_MASK = 0xC000;
+constexpr uint16_t OPER_COMMON_CODE_MASK = 0x3FFF;
 
-constexpr uint16_t OPER_PAYLOAD_NONE   = 0;
+constexpr uint16_t OPER_PAYLOAD_NONE = 0;
 constexpr uint16_t OPER_PAYLOAD_OPCODE = 1;
-constexpr uint16_t OPER_PAYLOAD_DATA   = 2;
-constexpr uint16_t OPER_PAYLOAD_MIXED  = 3;
+constexpr uint16_t OPER_PAYLOAD_DATA = 2;
+constexpr uint16_t OPER_PAYLOAD_MIXED = 3;
 
-constexpr uint16_t OPER_COMMON_NONE        = 0x0000;
-constexpr uint16_t OPER_COMMON_CLICKED     = 0x0001;
+constexpr uint16_t OPER_COMMON_NONE = 0x0000;
+constexpr uint16_t OPER_COMMON_CLICKED = 0x0001;
 constexpr uint16_t OPER_COMMON_DOUBLECLICK = 0x0002;
-constexpr uint16_t OPER_COMMON_RIGHTCLICK  = 0x0004;
-constexpr uint16_t OPER_COMMON_ACTIVE      = 0x0008;
+constexpr uint16_t OPER_COMMON_RIGHTCLICK = 0x0004;
+constexpr uint16_t OPER_COMMON_ACTIVE = 0x0008;
 constexpr uint16_t OPER_COMMON_DEACTIVATED = 0x0010;
-constexpr uint16_t OPER_COMMON_HOLD        = 0x0020;
-constexpr uint16_t OPER_COMMON_DRAG        = 0x0040;
-constexpr uint16_t OPER_COMMON_DROP        = 0x0080;
+constexpr uint16_t OPER_COMMON_HOLD = 0x0020;
+constexpr uint16_t OPER_COMMON_DRAG = 0x0040;
+constexpr uint16_t OPER_COMMON_DROP = 0x0080;
 
 namespace OperCode
 {
@@ -346,29 +351,29 @@ namespace OperCode
 	}
 }
 
-constexpr uint16_t OPER_EDIT_SUBMIT  = 0x0001;
+constexpr uint16_t OPER_EDIT_SUBMIT = 0x0001;
 constexpr uint16_t OPER_EDIT_CHANGED = 0x0002;
-constexpr uint16_t OPER_EDIT_CANCEL  = 0x0003;
+constexpr uint16_t OPER_EDIT_CANCEL = 0x0003;
 
-constexpr uint16_t OPER_CUSTOM_IA_INPUT_SUBMIT  = 0x0001;
-constexpr uint16_t OPER_CUSTOM_IA_BTN_CLICKED   = 0x0002;
+constexpr uint16_t OPER_CUSTOM_IA_INPUT_SUBMIT = 0x0001;
+constexpr uint16_t OPER_CUSTOM_IA_BTN_CLICKED = 0x0002;
 constexpr uint16_t OPER_CUSTOM_CA_COMBO_CHANGED = 0x0001;
-constexpr uint16_t OPER_CUSTOM_CA_BTN_CLICKED   = 0x0002;
+constexpr uint16_t OPER_CUSTOM_CA_BTN_CLICKED = 0x0002;
 
-constexpr uint16_t OPER_LIST_ROW_ACTIVATED         = 0x0001;
-constexpr uint16_t OPER_LIST_ROW_SUBMIT            = 0x0002;
-constexpr uint16_t OPER_LIST_ROW_BTN_CLICKED       = 0x0003;
+constexpr uint16_t OPER_LIST_ROW_ACTIVATED = 0x0001;
+constexpr uint16_t OPER_LIST_ROW_SUBMIT = 0x0002;
+constexpr uint16_t OPER_LIST_ROW_BTN_CLICKED = 0x0003;
 constexpr uint16_t OPER_LIST_ROW_SELECTION_CHANGED = 0x0004;
-constexpr uint16_t OPER_LIST_ROW_MOVED             = 0x0005;
-constexpr uint16_t OPER_LIST_ADD                   = 0x0006;
-constexpr uint16_t OPER_LIST_SCROLLED              = 0x0007;
+constexpr uint16_t OPER_LIST_ROW_MOVED = 0x0005;
+constexpr uint16_t OPER_LIST_ADD = 0x0006;
+constexpr uint16_t OPER_LIST_SCROLLED = 0x0007;
 
 constexpr uint16_t OPER_STRUCT_TITLE_CLOSE = 0x0001;
 
-constexpr uint16_t OPER_PROG_UPDATED       = 0x0001;
-constexpr uint16_t OPER_COMBO_OPENED       = 0x0001;
-constexpr uint16_t OPER_COMBO_CLOSED       = 0x0002;
-constexpr uint16_t OPER_SLIDER_THUMB_LEFT  = 0x0001;
+constexpr uint16_t OPER_PROG_UPDATED = 0x0001;
+constexpr uint16_t OPER_COMBO_OPENED = 0x0001;
+constexpr uint16_t OPER_COMBO_CLOSED = 0x0002;
+constexpr uint16_t OPER_SLIDER_THUMB_LEFT = 0x0001;
 constexpr uint16_t OPER_SLIDER_THUMB_RIGHT = 0x0002;
 
 constexpr uint64_t OPER_SEG_PROBE = OperCode::MakeCode(0x1234, 0x5678, 0x9ABCDEF0);
@@ -407,12 +412,89 @@ inline vec2 UnpackWndPos(uint64_t param)
 
 struct ListBuffer
 {
-	DWORD dwSelected;
-	DWORD dwCount;
-	DWORD dwCapacity;
-	DWORD cbItem;
+	uint32_t dwSelected;
+	uint32_t dwCount;
+	uint32_t dwCapacity;
+	uint32_t cbItem;
+	uint32_t dwTop;
 };
 
-constexpr DWORD LIST_SEL_NONE = 0xFFFFFFFF;
-constexpr DWORD LIST_SPECIAL_FIRST = 0;
-constexpr DWORD LIST_SPECIAL_LAST = 1;
+constexpr uint32_t LIST_SEL_NONE = 0xFFFFFFFF;
+constexpr uint32_t LIST_SPECIAL_FIRST = 0;
+constexpr uint32_t LIST_SPECIAL_LAST = 1;
+
+// ========================
+// 即时状态
+// ========================
+
+namespace ImmedState
+{
+	enum StateBit :uint32_t
+	{
+		// 基础状态
+		IMMED_STATE_BASE = 0,
+		IMMED_STATE_HOVERED = 1 << 0,
+		IMMED_STATE_FOCUSED = 1 << 1,
+		IMMED_STATE_ACTIVE = 1 << 2,
+		IMMED_STATE_EDITED = 1 << 3,
+		IMMED_STATE_SUBMITTED = 1 << 4,
+		IMMED_STATE_DRAGGING = 1 << 5,
+		IMMED_STATE_DISABLED = 1 << 6,
+		IMMED_STATE_DEACTIVATED = 1 << 7,
+		// 组合状态
+		IMMED_STATE_CLICK_COMPLETED = IMMED_STATE_DEACTIVATED | IMMED_STATE_HOVERED,
+	};
+
+	static inline StateBit operator|(StateBit s1, StateBit s2) { return (StateBit)((uint32_t)s1 | (uint32_t)s2); }
+	static inline StateBit operator&(StateBit s1, StateBit s2) { return (StateBit)((uint32_t)s1 & (uint32_t)s2); }
+	static inline StateBit operator^(StateBit s1, StateBit s2) { return (StateBit)((uint32_t)s1 ^ (uint32_t)s2); }
+	static inline StateBit operator~(StateBit s) { return (StateBit)~(uint32_t)s; }
+	static inline StateBit& operator|=(StateBit& s1, StateBit s2) { s1 = s1 | s2; return s1; }
+	static inline StateBit& operator&=(StateBit& s1, StateBit s2) { s1 = s1 & s2; return s1; }
+	static inline StateBit& operator^=(StateBit& s1, StateBit s2) { s1 = s1 ^ s2; return s1; }
+	static inline bool operator==(StateBit s1, StateBit s2) { return (uint32_t)s1 == (uint32_t)s2; }
+	static inline bool operator!=(StateBit s1, StateBit s2) { return (uint32_t)s1 != (uint32_t)s2; }
+
+
+	struct State
+	{
+	private:
+		StateBit state;
+	public:
+		State() :state(IMMED_STATE_BASE) {}
+		State(StateBit s) :state(s) {}
+
+		State& operator=(StateBit s) { state = s; return *this; }
+
+		State operator|(const StateBit s) const { State s2(*this); s2 |= s; return s2; }
+		State operator|(const State s) const { State s2(*this); s2 |= s.state; return s2; }
+		State& operator|=(StateBit s) { state |= s; return *this; }
+
+		State operator&(StateBit s) const { State s2(*this); s2 &= s; return s2; }
+		State operator&(const State s) const { State s2(*this); s2 &= s.state; return s2; }
+		State& operator&=(StateBit s) { state &= s; return *this; }
+
+		State operator^(StateBit s)  const { State s2(*this); s2 ^= s; return s2; }
+		State operator^(const State s) const { State s2(*this); s2 ^= s.state; return s2; }
+		State& operator^=(StateBit s) { state ^= s; return *this; }
+
+
+		inline bool  With(StateBit s) const { return (state & s) != 0; }
+		inline bool  Without(StateBit s) const { return (state & s) == 0; }
+		inline bool  Is(StateBit s) const { return (state & s) == s; }
+		inline bool  IsNot(StateBit s) const { return (state & s) != s; }
+
+		inline bool   IsHovered() const { return With(IMMED_STATE_HOVERED); }
+		inline bool   IsFocused() const { return With(IMMED_STATE_FOCUSED); }
+		inline bool   IsActive() const { return With(IMMED_STATE_ACTIVE); }
+		inline bool   IsEdited() const { return With(IMMED_STATE_EDITED); }
+		inline bool IsSubmitted() const { return With(IMMED_STATE_SUBMITTED); }
+		inline bool IsDragging() const { return With(IMMED_STATE_DRAGGING); }
+		inline bool   IsDisabled() const { return With(IMMED_STATE_DISABLED); }
+		inline bool   IsDeactivated() const { return With(IMMED_STATE_DEACTIVATED); }
+
+		State& Set(StateBit s) { state |= s; return *this; }
+		State& Clear(StateBit s) { state &= ~s; return *this; }
+		State& Reset() { state = IMMED_STATE_BASE; return *this; }
+	};
+}

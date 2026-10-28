@@ -38,7 +38,7 @@ namespace Controls
 		}
 
 		// 函数: UpdateContext
-		// 描述: 更新部件层上下文(每帧一次; 复位编辑中计数, 并算当前帧圆角)
+		// 描述: 更新部件层上下文(每帧一次; 复位编辑中计数, 并算当前控件圆角)
 		BOOL UpdateContext(CONST AutoSize& refsize, CONST ProjCR* pProj)
 		{
 			dwDisableIME = 0;
@@ -81,6 +81,42 @@ namespace Controls
 		static VOID ListCollectRowOper(int64_t qwRow, DWORD dwRow, int64_t& qwOper, uint64_t& qwParam);
 
 	}
+	void CollectImmedState(ImmedState::State& state)
+	{
+		using namespace ImmedState;
+		if (ImGui::IsItemHovered())
+		{
+			state.Set(IMMED_STATE_HOVERED);
+		}
+		if (ImGui::IsItemActive())
+		{
+			state.Set(IMMED_STATE_ACTIVE);
+		}
+		if (ImGui::GetItemFlags() & ImGuiItemFlags_Disabled)
+		{
+			state.Set(IMMED_STATE_DISABLED);
+		}
+		if (ImGui::IsItemDeactivated())
+		{
+			state.Set(IMMED_STATE_DEACTIVATED);
+		}
+		if (ImGui::IsItemFocused())
+		{
+			state.Set(IMMED_STATE_FOCUSED);
+		}
+		if (ImGui::IsItemEdited())
+		{
+			state.Set(IMMED_STATE_EDITED);
+		}
+		if (ImGui::IsItemDeactivatedAfterEdit())
+		{
+			state.Set(IMMED_STATE_SUBMITTED);
+		}
+		if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+		{
+			state.Set(IMMED_STATE_DRAGGING);
+		}
+	}
 }
 
 namespace Controls
@@ -98,12 +134,15 @@ namespace Controls
 				{
 					return FALSE;
 				}
+				// 能力获取
 				CONST Palette& palette = way.palette;
-				ImDrawList* draw_list = ImGui::GetWindowDrawList();
-				FLOAT fSize = (size.x < size.y ? size.x : size.y) - fPadding * 4;
+				ImDrawList* drawlist = ImGui::GetWindowDrawList();
+				// 尺寸计算
+				float fSize = (size.x < size.y ? size.x : size.y) - fPadding * 4;
 				ImVec2 sign = { pos.x + CenterOffset(size.x, fSize), pos.y + CenterOffset(size.y, fSize) };
 				ImVec2 end = { sign.x + fSize, sign.y + fSize };
 				ImVec2 btn_end = { pos.x + size.x, pos.y + size.y };
+				// 绘制与交互
 				ImGui::PushID(id);
 				ImGui::SetCursorScreenPos(pos);
 				ImGui::InvisibleButton(label ? label : "##EXITBUTTON", size);
@@ -112,18 +151,18 @@ namespace Controls
 				ImU32 crFore = StateColorU32(palette.crForeground, WIDGET_STATE_BASE);
 				if (IsHovered)
 				{
-					draw_list->AddRectFilled(pos, btn_end, StateColorU32(palette.crBackground, WIDGET_STATE_HOVERED), 0);
+					drawlist->AddRectFilled(pos + ImVec2(0, 1), btn_end - ImVec2(1, 0), palette.crBackground.crHovered, sizeinfo.space + 1, ImDrawFlags_RoundCornersTopRight);
 				}
-				draw_list->AddLine(ImVec2(sign.x, sign.y), ImVec2(end.x, end.y), crFore, thickness);
-				draw_list->AddLine(ImVec2(sign.x, end.y), ImVec2(end.x, sign.y), crFore, thickness);
+				drawlist->AddLine(ImVec2(sign.x, sign.y), ImVec2(end.x, end.y), crFore, thickness);
+				drawlist->AddLine(ImVec2(sign.x, end.y), ImVec2(end.x, sign.y), crFore, thickness);
 				ImGui::PopID();
 				return IsClicked;
 			}
 			// 函数: InputText
-			// 描述: 帧类单行文本件: 底与边框经 ImGui 原生帧绘制(内边距按声明高对齐), 本件不再自绘外框
-			int64_t InputText(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, CHAR* lpText, size_t nTextCap,
-				LPCSTR lpHint)
-			{
+			// 描述: 单行文本件: 底与边框经 ImGui 原生绘制(内边距按声明高对齐), 本件不再自绘外框
+			int64_t InputText(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, CHAR* lpText, size_t nTextCap, LPCSTR lpHint)
+			{	
+				// 初始化
 				int64_t qwOper = 0;
 				uint16_t wOwn = 0;
 				uint16_t wCommon = OPER_COMMON_NONE;
@@ -136,7 +175,8 @@ namespace Controls
 				{
 					return qwOper;
 				}
-				const BOOL bEditable = (nTextCap > 0) ? TRUE : FALSE;
+				// 参数计算
+				const BOOL bEditable = nTextCap > 0;
 				const size_t nCap = bEditable ? nTextCap : (strlen(lpText) + 1);
 				ImGui::PushID(id);
 				ImGuiStyle& style = ImGui::GetStyle();
@@ -153,8 +193,7 @@ namespace Controls
 				ImGui::PushStyleColor(ImGuiCol_Text, StateColorU32(palette.crForeground, WIDGET_STATE_BASE));
 				ImGui::SetCursorPos(pos);
 				ImGui::SetNextItemWidth(size.x);
-				LPCSTR lpHintShown = (bEditable && lpHint != NULL) ? lpHint : "";
-				ImGui::InputTextWithHint("##FRAMEDITEM_TEXT", lpHintShown, lpText, nCap,
+				ImGui::InputTextWithHint("##FRAMEDITEM_TEXT", lpHint, lpText, nCap,
 					bEditable ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_ReadOnly);
 				if (ImGui::IsItemActive())
 				{
@@ -175,7 +214,7 @@ namespace Controls
 				return qwOper;
 			}
 			// 函数: InputTextMulti
-			// 描述: 帧类多行文本件: 底与边框经 ImGui 原生帧绘制(项尺寸 = 声明矩形), 本件不再自绘外框
+			// 描述: 多行文本件: 底与边框经 ImGui 原生绘制(项尺寸 = 声明矩形), 本件不再自绘外框
 			int64_t InputTextMulti(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, CHAR* lpText, size_t nTextCap,
 				LPCSTR lpHint)
 			{
@@ -221,7 +260,7 @@ namespace Controls
 				return qwOper;
 			}
 			// 函数: InputScalar
-			// 描述: 帧类数值件: 底与边框经 ImGui 原生帧绘制(内边距按声明高对齐), 本件不再自绘外框
+			// 描述: 数值件: 底与边框经 ImGui 原生绘制(内边距按声明高对齐), 本件不再自绘外框
 			int64_t InputScalar(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, VOID* pData, ImGuiDataType eType,
 				LPCSTR lpFormat, LPCSTR lpHint)
 			{
@@ -274,7 +313,7 @@ namespace Controls
 				return qwOper;
 			}
 			// 函数: Combo
-			// 描述: 帧类下拉件: 原生帧底 + 通道补画 1px 边框, 展开列表项表与 ComboAction 同源
+			// 描述: 下拉件: 原生底 + 通道补画 1px 边框, 展开列表项表与 ComboAction 同源
 			int64_t Combo(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, LPCSTR* lpItems, INT nCount,
 				INT& nIndex)
 			{
@@ -326,7 +365,7 @@ namespace Controls
 				WidgetState state = WIDGET_STATE_BASE;
 				state |= ImGui::IsItemHovered() ? WIDGET_STATE_HOVERED : WIDGET_STATE_BASE;
 				state |= ImGui::IsItemActive() ? WIDGET_STATE_ACTIVE : WIDGET_STATE_BASE;
-				state |= ItemDisabled() ? WIDGET_STATE_DISABLE : WIDGET_STATE_BASE;
+				state |= ItemDisabled() ? WIDGET_STATE_DISABLED : WIDGET_STATE_BASE;
 				if (ImGui::IsItemActivated())
 				{
 					wCommon |= OPER_COMMON_ACTIVE;
@@ -399,8 +438,187 @@ namespace Controls
 				ImGui::PopID();
 				return qwOper;
 			}
+			// 函数: TimeBarSegment
+			// 描述: 时间条的单个数字段: 透明底 + 定宽数字输入(变更或滚轮微调时写回段值并返回 TRUE)
+			static BOOL TimeBarSegment(int id, ImVec2 pos, FLOAT fW, FLOAT fH, CONST Palette& palette,
+				INT32* pValue, INT32 nMax, LPCSTR lpFormat)
+			{
+				BOOL bChanged = FALSE;
+				if (pValue == NULL || fW <= 0.0f || fH <= 0.0f)
+				{
+					return bChanged;
+				}
+				FLOAT padT = CenterOffset(fH, sizeinfo.fontSize);
+				if (padT < 1.0f)
+				{
+					padT = 1.0f;
+				}
+				const ImVec4 crsClear = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+				ImGui::PushID(id);
+				ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(sizeinfo.padding, padT));
+				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, crsClear);
+				ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, crsClear);
+				ImGui::PushStyleColor(ImGuiCol_FrameBgActive, crsClear);
+				ImGui::PushStyleColor(ImGuiCol_Border, crsClear);
+				ImGui::PushStyleColor(ImGuiCol_Text, StateColorU32(palette.crForeground, WIDGET_STATE_BASE));
+				ImGui::SetCursorPos(pos);
+				ImGui::SetNextItemWidth(fW);
+				if (ImGui::InputScalar("##TIMEBARSEG", ImGuiDataType_S32, pValue, NULL, NULL, lpFormat,
+					ImGuiInputTextFlags_CharsDecimal))
+				{
+					bChanged = TRUE;
+				}
+				if (ImGui::IsItemActive())
+				{
+					dwDisableIME++;
+				}
+				// 滚轮微调: 上滚加一, 下滚减一; 越界时回绕到另一端(与旧项目时码输入一致)
+				if (ImGui::IsItemHovered() && ImGui::GetIO().MouseWheel != 0.0f)
+				{
+					*pValue += (ImGui::GetIO().MouseWheel > 0.0f) ? 1 : -1;
+					*pValue = (*pValue < 0) ? nMax : ((*pValue > nMax) ? 0 : *pValue);
+					bChanged = TRUE;
+				}
+				// 逐段上限: 时 99 / 分 59 / 秒 59 / 毫秒 999
+				if (*pValue < 0)
+				{
+					*pValue = 0;
+					bChanged = TRUE;
+				}
+				else if (*pValue > nMax)
+				{
+					*pValue = nMax;
+					bChanged = TRUE;
+				}
+				ImGui::PopStyleColor(5);
+				ImGui::PopStyleVar(2);
+				ImGui::PopID();
+				return bChanged;
+			}
+			// 函数: TimeBar
+			// 描述: 可编辑时间条: 提示文本 + 圆角底 + 时/分/秒/毫秒四段数字输入; 任一段变更即按新值
+			//       合成毫秒写回引用(按上限钳制), 并返回专属段编辑提交码(无变更返回 0)
+			int64_t TimeBar(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, LPCSTR lpHint,
+				int64_t& rValueMs, int64_t nLimitMs)
+			{
+				int64_t qwOper = 0;
+				BOOL bChanged = FALSE;
+				if (way.eDesc != PALETTE)
+				{
+					return qwOper;
+				}
+				CONST Palette& palette = way.palette;
+				if (size.x <= 0.0f || size.y <= 0.0f)
+				{
+					return qwOper;
+				}
+				// 1. 当前值拆成时 / 分 / 秒 / 毫秒四段(上限 99:59:59.999)
+				int64_t nValue = (rValueMs > 0) ? rValueMs : 0;
+				if (nLimitMs > 0 && nValue > nLimitMs)
+				{
+					nValue = nLimitMs;
+				}
+				INT32 Parts[4] = { 0, 0, 0, 0 };
+				{
+					int64_t nTotalSeconds = nValue / 1000;
+					Parts[0] = (INT32)(nTotalSeconds / 3600);
+					Parts[1] = (INT32)((nTotalSeconds / 60) % 60);
+					Parts[2] = (INT32)(nTotalSeconds % 60);
+					Parts[3] = (INT32)(nValue % 1000);
+					if (Parts[0] > 99)
+					{
+						Parts[0] = 99;
+						Parts[1] = 59;
+						Parts[2] = 59;
+						Parts[3] = 999;
+					}
+				}
+				// 2. 排版: 提示文本占左段, 圆角底条占右段(提示为空时底条占满控件矩形)
+				CONST FLOAT fPad = sizeinfo.padding;
+				CONST FLOAT fHalfFont = sizeinfo.fontSize * 0.5f;
+				CONST FLOAT fBarNeed = fHalfFont * 9.0f + fPad * 11.0f;
+				FLOAT fHintW = 0.0f;
+				if (lpHint != NULL && lpHint[0] != '\0')
+				{
+					fHintW = ImGui::CalcTextSize(lpHint).x;
+				}
+				CONST FLOAT fHintGap = (fHintW > 0.0f) ? fPad : 0.0f;
+				FLOAT fBarW = size.x - fHintW - fHintGap;
+				if (fBarW > fBarNeed)
+				{
+					fBarW = fBarNeed;
+				}
+				if (fBarW < 1.0f)
+				{
+					fBarW = 1.0f;
+				}
+				CONST FLOAT fUnit = (fBarW < fBarNeed) ? (fBarW / fBarNeed) : 1.0f;
+				CONST FLOAT fSegWidths[4] = {
+					fHalfFont * 2.0f * fUnit + fPad * 2.0f,
+					fHalfFont * 2.0f * fUnit + fPad * 2.0f,
+					fHalfFont * 2.0f * fUnit + fPad * 2.0f,
+					fHalfFont * 3.0f * fUnit + fPad * 2.0f
+				};
+				CONST FLOAT fGap = fPad * fUnit;
+				static CONST LPCSTR Formats[4] = { "%02d", "%02d", "%02d", "%03d" };
+				static CONST INT32 Limits[4] = { 99, 59, 59, 999 };
+				static CONST LPCSTR Separators[3] = { ":", ":", "." };
+				// 3. 提示文本 + 圆角底条
+				ImGui::PushID(id);
+				ImGui::SetCursorPos(pos);
+				CONST ImVec2 boot = ImGui::GetCursorScreenPos();
+				ImDrawList* drawlist = ImGui::GetWindowDrawList();
+				if (fHintW > 0.0f)
+				{
+					drawlist->AddText(ImVec2(boot.x, boot.y + CenterOffset(size.y, sizeinfo.fontSize)),
+						StateColorU32(palette.crForeground, WIDGET_STATE_BASE), lpHint);
+				}
+				CONST ImVec2 barBoot = ImVec2(boot.x + fHintW + fHintGap, boot.y);
+				CONST ImVec2 barEnd = ImVec2(barBoot.x + fBarW, boot.y + size.y);
+				CONST FLOAT fBarRounding = (fRounding < size.y * 0.5f) ? fRounding : size.y * 0.5f;
+				drawlist->AddRectFilled(barBoot, barEnd, StateColorU32(palette.crBackground, WIDGET_STATE_BASE), fBarRounding);
+				drawlist->AddRect(barBoot, barEnd, StateColorU32(palette.crBorder, WIDGET_STATE_BASE), fBarRounding, 0, 1.0f);
+				// 4. 四段数字输入与段间分隔符
+				FLOAT fX = barBoot.x;
+				for (int i = 0; i < 4; i++)
+				{
+					if (TimeBarSegment(id * 8 + i, ImVec2(fX, pos.y), fSegWidths[i], size.y, palette,
+						&Parts[i], Limits[i], Formats[i]))
+					{
+						bChanged = TRUE;
+					}
+					fX += fSegWidths[i];
+					if (i < 3)
+					{
+						CONST ImVec2 sepSize = ImGui::CalcTextSize(Separators[i]);
+						drawlist->AddText(ImVec2(fX + CenterOffset(fGap, sepSize.x),
+							boot.y + CenterOffset(size.y, sizeinfo.fontSize)),
+							StateColorU32(palette.crForeground, WIDGET_STATE_DISABLED), Separators[i]);
+						fX += fGap;
+					}
+				}
+				// 5. 合成毫秒: 任一段变更才写回并回传提交码(按上限钳制)
+				if (bChanged)
+				{
+					int64_t nNew = ((int64_t)Parts[0] * 3600 + (int64_t)Parts[1] * 60 + (int64_t)Parts[2]) * 1000 +
+						(int64_t)Parts[3];
+					if (nNew < 0)
+					{
+						nNew = 0;
+					}
+					if (nLimitMs > 0 && nNew > nLimitMs)
+					{
+						nNew = nLimitMs;
+					}
+					rValueMs = nNew;
+					qwOper = (int64_t)(uint64_t)OPER_EDIT_SUBMIT;
+				}
+				ImGui::PopID();
+				return qwOper;
+			}
 			// 函数: InputAction
-			// 描述: 两段件: 左段单行输入 + 右段按钮(两段底与边框在项提交后补画)
+			// 描述: 输入动作部件: 左段单行输入 + 右段按钮(两段底与边框在项提交后补画)
 			int64_t InputAction(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, FLOAT fBtnW, CHAR* lpText, size_t nTextCap, LPCSTR lpHint, LPCSTR lpBtn)
 			{
 				int64_t qwOper = 0;
@@ -461,7 +679,7 @@ namespace Controls
 				ImGui::InputTextWithHint("##INPUTACTION_TEXT", lpHintShown, lpText, nCap, bEditable ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_ReadOnly);
 				state |= ImGui::IsItemHovered() ? WIDGET_STATE_HOVERED : WIDGET_STATE_BASE;
 				state |= ImGui::IsItemActive() ? WIDGET_STATE_ACTIVE : WIDGET_STATE_BASE;
-				state |= ItemDisabled() ? WIDGET_STATE_DISABLE : WIDGET_STATE_BASE;
+				state |= ItemDisabled() ? WIDGET_STATE_DISABLED : WIDGET_STATE_BASE;
 				if (ImGui::IsItemActivated())
 				{
 					wCommon |= OPER_COMMON_ACTIVE;
@@ -476,7 +694,7 @@ namespace Controls
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, palette.crSurface.crHovered);
 				ImGui::PushStyleColor(ImGuiCol_ButtonActive, palette.crSurface.crActive);
 				ImGui::PushStyleColor(ImGuiCol_Border, crsClear);
-				ImGui::PushStyleColor(ImGuiCol_Text, StateColorU32(palette.crSurfaceForeground, WIDGET_STATE_BASE));
+				ImGui::PushStyleColor(ImGuiCol_Text, palette.crSurfaceForeground.crBase);
 				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 				ImGui::SetCursorPos(ImVec2(pos.x + size.x - fBtn, pos.y));
 				const BOOL bClicked = ImGui::Button(lpBtn ? lpBtn : "##INPUTACTION_BTN", ImVec2(fBtn, size.y));
@@ -504,7 +722,7 @@ namespace Controls
 				return qwOper;
 			}
 			// 函数: ComboAction
-			// 描述: 两段件: 左段下拉框 + 右段按钮(补画口径与 InputAction 一致)
+			// 描述: 下拉动作部件: 左段下拉框 + 右段按钮(补画口径与 InputAction 一致)
 			int64_t ComboAction(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, FLOAT fBtnW,
 				LPCSTR* lpItems, INT nCount, INT& nIndex, LPCSTR lpBtn)
 			{
@@ -591,7 +809,7 @@ namespace Controls
 				}
 				state.combo |= ImGui::IsItemHovered() ? WIDGET_STATE_HOVERED : WIDGET_STATE_BASE;
 				state.combo |= ImGui::IsItemActive() ? WIDGET_STATE_ACTIVE : WIDGET_STATE_BASE;
-				state.combo |= ItemDisabled() ? WIDGET_STATE_DISABLE : WIDGET_STATE_BASE;
+				state.combo |= ItemDisabled() ? WIDGET_STATE_DISABLED : WIDGET_STATE_BASE;
 				ImGui::PopStyleColor(8);
 				if (ImGui::IsItemActivated())
 				{
@@ -612,7 +830,7 @@ namespace Controls
 				const BOOL bClicked = ImGui::Button(lpBtn ? lpBtn : "##COMBOACTION_BTN", ImVec2(fBtn, size.y));
 				state.button |= ImGui::IsItemHovered() ? WIDGET_STATE_HOVERED : WIDGET_STATE_BASE;
 				state.button |= ImGui::IsItemActive() ? WIDGET_STATE_ACTIVE : WIDGET_STATE_BASE;
-				state.button |= ItemDisabled() ? WIDGET_STATE_DISABLE : WIDGET_STATE_BASE;
+				state.button |= ItemDisabled() ? WIDGET_STATE_DISABLED : WIDGET_STATE_BASE;
 				ImGui::PopStyleVar();
 				ImGui::PopStyleColor(5);
 				if (bClicked)
@@ -628,6 +846,83 @@ namespace Controls
 
 				ImGui::PopID();
 				qwOper = (int64_t)((uint64_t)wOwn | ((uint64_t)wCommon << 16));
+				return qwOper;
+			}
+			// 函数: TextAction
+			// 描述: 文本动作控件: 命中区为覆盖控件矩形的无绘制项, 文本与按钮自绘
+			int64_t TextAction(int id, ImVec2 pos, ImVec2 size, const PaintWay& way, FLOAT fBtnW, LPCSTR lpText, LPCSTR lpBtn)
+			{
+				using namespace ImmedState;
+				int64_t qwOper = 0;
+				ImGui::PushID(id);
+				// 计算位置尺寸
+				struct Geo
+				{
+					union
+					{
+						ImVec4 imRECT;
+						struct
+						{
+							ImVec2 boot;
+							ImVec2 end;
+						}rect;
+					}base, text, btn;
+					Geo() :base{}, text{}, btn{} {}
+				}geo;
+				ImGui::SetCursorPos(pos);
+				geo.base.rect.boot = ImGui::GetCursorScreenPos();
+				geo.base.rect.end = geo.base.rect.boot + size;
+				geo.text.rect.boot = geo.base.rect.boot;
+				geo.text.rect.end = geo.base.rect.end - ImVec2(fBtnW, 0.0f);
+				geo.btn.rect.boot = geo.text.rect.end - ImVec2(0, size.y);
+				geo.btn.rect.end = geo.base.rect.end;
+				// 计算文本垂直偏移量
+				const float TEXTOFF = CenterOffset(size.y, sizeinfo.fontSize);
+				// 获取配色方案
+				Palette palette = way.palette;
+				DWORD crAlpha = 0x000000;
+				// 初始化预设状态
+				struct
+				{
+					State base;
+					State btn;
+				}state;
+
+				// 行为记录
+				ImGui::SetCursorPos(pos);
+				ImGui::InvisibleButton("##SPANTEXT", size - ImVec2(fBtnW, 0.0f));
+				CollectImmedState(state.base);
+
+				ImGui::SetCursorPos(ImVec2(pos.x + size.x - fBtnW, pos.y));
+				ImGui::InvisibleButton("##DELETE", ImVec2(fBtnW, size.y));
+				CollectImmedState(state.btn);
+
+				// 获取绘制列表
+				ImDrawList* drawlist = ImGui::GetWindowDrawList();
+				// 绘制底层
+				const ImU32 crFaceBg = palette.crBackground.StateColor(state.base);
+				const ImU32 crFaceDel = palette.crBackground.StateColor(state.btn);
+				drawlist->AddRectFilled(geo.base.rect.boot, geo.base.rect.end, crFaceBg, fRounding);
+				drawlist->AddRectFilled(geo.btn.rect.boot, geo.btn.rect.end, crFaceDel, fRounding);
+				// 绘制内容
+				drawlist->AddText(geo.text.rect.boot + ImVec2(sizeinfo.padding, TEXTOFF), palette.crForeground.crBase, lpText);
+				drawlist->AddText(geo.btn.rect.boot + ImVec2(CenterOffset(size.y, sizeinfo.fontSize / 2), TEXTOFF), palette.crForeground.crBase, lpBtn);
+				// 绘制顶层
+				const ImU32 crBorder = palette.crBorder.StateColor(state.base | state.btn);
+				const ImU32 crBorderInner = palette.crBorderInner.StateColor(state.btn);
+				drawlist->AddRect(geo.base.rect.boot, geo.base.rect.end, crBorder, fRounding, ImDrawFlags_None, 1.0f);
+				drawlist->AddRect(geo.btn.rect.boot, geo.btn.rect.end, crBorderInner, fRounding, ImDrawFlags_None, 1.0f);
+
+				// 处理记录操作
+				if (state.btn.Is(IMMED_STATE_CLICK_COMPLETED))
+				{
+					qwOper = (int64_t)((uint64_t)OPER_LIST_ROW_BTN_CLICKED | ((uint64_t)OPER_COMMON_CLICKED << 16));
+				}
+				else if (state.base.Is(IMMED_STATE_CLICK_COMPLETED))
+				{
+					qwOper = (int64_t)((uint64_t)OPER_LIST_ROW_ACTIVATED | ((uint64_t)OPER_COMMON_CLICKED << 16));
+				}
+				ImGui::PopID();
 				return qwOper;
 			}
 			// 函数: SingleSlider
@@ -689,6 +984,109 @@ namespace Controls
 				ImGui::PopID();
 				return qwOper;
 			}
+			// 函数: RangeSlider
+			// 描述: 双手柄范围滑动条(见 .h)
+			int64_t RangeSlider(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way,
+				int64_t& vMin, int64_t& vMax, int64_t lMin, int64_t lMax)
+			{
+				int64_t qwOper = 0;
+				static int sThumb = 0;
+				static int sThumbId = -1;
+				if (way.eDesc != PALETTE)
+				{
+					return qwOper;
+				}
+				CONST Palette& palette = way.palette;
+				if (size.x <= 0.0f || size.y <= 0.0f || lMax <= lMin)
+				{
+					return qwOper;
+				}
+				ImDrawList* drawlist = ImGui::GetWindowDrawList();
+				ImGui::PushID(id);
+				ImGui::SetCursorPos(pos);
+				CONST ImVec2 boot = ImGui::GetCursorScreenPos();
+				CONST ImVec2 end = ImVec2(boot.x + size.x, boot.y + size.y);
+				ImGui::InvisibleButton("##RANGE_ITEM", size);
+				CONST BOOL bHovered = ImGui::IsItemHovered();
+				CONST BOOL bActive = ImGui::IsItemActive();
+				CONST FLOAT r = size.y * SLIDER_GRIP_RATIO;
+				CONST FLOAT trackHalf = r * SLIDER_TRACK_RATIO;
+				CONST FLOAT cy = boot.y + CenterOffset(size.y, r * 2.0f) + r;
+				CONST FLOAT usable = size.x - r * 2.0f;
+				// 1. 进入拖动时按鼠标位置选择较近的手柄
+				if (ImGui::IsItemActivated())
+				{
+					CONST FLOAT mx = ImGui::GetIO().MousePos.x;
+					FLOAT ratioMin = (FLOAT)(vMin - lMin) / (FLOAT)(lMax - lMin);
+					FLOAT ratioMax = (FLOAT)(vMax - lMin) / (FLOAT)(lMax - lMin);
+					if (ratioMin < 0.0f) { ratioMin = 0.0f; }
+					if (ratioMin > 1.0f) { ratioMin = 1.0f; }
+					if (ratioMax < 0.0f) { ratioMax = 0.0f; }
+					if (ratioMax > 1.0f) { ratioMax = 1.0f; }
+					CONST FLOAT pxMin = boot.x + r + usable * ratioMin;
+					CONST FLOAT pxMax = boot.x + r + usable * ratioMax;
+					sThumb = ((mx - pxMin) <= (pxMax - mx)) ? 0 : 1;
+					sThumbId = id;
+				}
+				// 2. 拖动中写回当前手柄值(两手柄互相钳制)
+				if (bActive == TRUE)
+				{
+					if (sThumbId != id)
+					{
+						sThumb = 0;
+						sThumbId = id;
+					}
+					CONST FLOAT mx = ImGui::GetIO().MousePos.x;
+					FLOAT ratio = (usable > 0.0f) ? ((mx - boot.x - r) / usable) : 0.0f;
+					if (ratio < 0.0f) { ratio = 0.0f; }
+					if (ratio > 1.0f) { ratio = 1.0f; }
+					CONST int64_t nValue = lMin + (int64_t)(ratio * (FLOAT)(lMax - lMin) + 0.5f);
+					if (sThumb == 0)
+					{
+						CONST int64_t nNew = (nValue < vMax) ? nValue : vMax;
+						if (nNew != vMin)
+						{
+							vMin = nNew;
+							qwOper = (int64_t)((uint64_t)OPER_SLIDER_THUMB_LEFT |
+								((uint64_t)OPER_EDIT_CHANGED << 16));
+						}
+					}
+					else
+					{
+						CONST int64_t nNew = (nValue > vMin) ? nValue : vMin;
+						if (nNew != vMax)
+						{
+							vMax = nNew;
+							qwOper = (int64_t)((uint64_t)OPER_SLIDER_THUMB_RIGHT |
+								((uint64_t)OPER_EDIT_CHANGED << 16));
+						}
+					}
+				}
+				// 3. 绘制轨道、选中区间与两个手柄
+				{
+					FLOAT ratioMin = (FLOAT)(vMin - lMin) / (FLOAT)(lMax - lMin);
+					FLOAT ratioMax = (FLOAT)(vMax - lMin) / (FLOAT)(lMax - lMin);
+					if (ratioMin < 0.0f) { ratioMin = 0.0f; }
+					if (ratioMin > 1.0f) { ratioMin = 1.0f; }
+					if (ratioMax < 0.0f) { ratioMax = 0.0f; }
+					if (ratioMax > 1.0f) { ratioMax = 1.0f; }
+					CONST FLOAT pxMin = boot.x + r + usable * ratioMin;
+					CONST FLOAT pxMax = boot.x + r + usable * ratioMax;
+					CONST ImU32 crTrack = StateColorU32(palette.crBackground, WIDGET_STATE_BASE);
+					CONST ImU32 crFill = StateColorU32(palette.crSurfaceForeground, WIDGET_STATE_BASE);
+					CONST ImU32 crGrip = StateColorU32(palette.crBorder,
+						(bHovered == TRUE || bActive == TRUE) ? WIDGET_STATE_HOVERED : WIDGET_STATE_BASE);
+					CONST ImU32 crGripEdge = StateColorU32(palette.crBorder, WIDGET_STATE_BASE);
+					drawlist->AddRectFilled(ImVec2(boot.x, cy - trackHalf), ImVec2(end.x, cy + trackHalf), crTrack, trackHalf);
+					drawlist->AddRectFilled(ImVec2(pxMin, cy - trackHalf), ImVec2(pxMax, cy + trackHalf), crFill, trackHalf);
+					drawlist->AddCircleFilled(ImVec2(pxMin, cy), r, crGrip);
+					drawlist->AddCircle(ImVec2(pxMin, cy), r, crGripEdge, 0, 1.0f);
+					drawlist->AddCircleFilled(ImVec2(pxMax, cy), r, crGrip);
+					drawlist->AddCircle(ImVec2(pxMax, cy), r, crGripEdge, 0, 1.0f);
+				}
+				ImGui::PopID();
+				return qwOper;
+			}
 			// 函数: ProgressStatic
 			// 描述: 进度状态显示件: 自绘圆角底 + 进度文本(恒返回 FALSE)
 			BOOL ProgressStatic(int id, ImVec2 pos, ImVec2 size, CONST PaintWay& way, int64_t current, int64_t expect, FLOAT fPadding)
@@ -712,8 +1110,8 @@ namespace Controls
 				ImGui::Dummy(size);
 				return FALSE;
 			}
-			// 函数: InputAction(列表行重载)
-			// 描述: 列表行件: 解包行数据后转单件实现, 行首拖拽把手占位后行内容右移
+			// 函数: InputAction(列表项重载)
+			// 描述: 列表项部件: 解包行数据后转对应基础部件, 行首拖拽把手占位后行内容右移
 			int64_t InputAction(int id, vec2 pos, vec2 size, CONST PaintWay& way, VOID* lpItem)
 			{
 				int64_t qwOper = 0;
@@ -745,8 +1143,8 @@ namespace Controls
 				}
 				return qwOper;
 			}
-			// 函数: InputActionRO(列表行重载, 只读)
-			// 描述: 列表行件只读形态: 文本容量按 0 传入, 单件走只读分支
+			// 函数: InputActionRO(列表项重载, 只读)
+			// 描述: 列表项部件只读形态: 文本容量按 0 传入, 转对应的基础部件走只读分支
 			int64_t InputActionRO(int id, vec2 pos, vec2 size, CONST PaintWay& way, VOID* lpItem)
 			{
 				int64_t qwOper = 0;
@@ -777,8 +1175,8 @@ namespace Controls
 				}
 				return qwOper;
 			}
-			// 函数: ComboAction(列表行重载)
-			// 描述: 列表行件: 解包选项表后转单件实现, 触发结论打包返回
+			// 函数: ComboAction(列表项重载)
+			// 描述: 列表项部件: 解包选项表后转对应基础部件, 触发结论打包返回
 			int64_t ComboAction(int id, vec2 pos, vec2 size, CONST PaintWay& way, VOID* lpItem)
 			{
 				int64_t qwOper = 0;
@@ -985,7 +1383,7 @@ namespace Controls
 				ImDrawList* pDrawList = pWindow->DrawList;
 
 				WidgetState state = WIDGET_STATE_BASE;
-				if( hovered){
+				if (hovered) {
 					state |= WIDGET_STATE_HOVERED;
 				}
 				if (held && hovered)
@@ -1304,7 +1702,7 @@ namespace Controls
 					float vert = IsAfter ? cur.y + size.y - thickness : cur.y;
 					ImDrawList* drawlist = ImGui::GetWindowDrawList();
 					ImRect border = { cur - ImVec2(padding,padding), cur + toImvec2(size) + ImVec2(padding,padding) };
-					ImRect line = { {cur.x, vert}, {cur.x + size.x, vert + thickness} };
+					ImRect line = { { cur.x, vert },{ cur.x + size.x, vert + thickness } };
 					drawlist->AddRectFilled(line.Min, line.Max, crEmphasis, rounding, ImDrawFlags_RoundCornersAll);
 					drawlist->AddRect(border.Min, border.Max, crEmphasis, rounding, ImDrawFlags_None, 2.0f);
 					if (payload->IsDelivery())
@@ -1318,7 +1716,7 @@ namespace Controls
 			return qwRet;
 		}
 		// 函数: ListCollectRowOper
-		// 描述: 把行件返回约定折算进控件的 oper 与回调 param(收集口径 = 取最后一个非 0 值)
+		// 描述: 把列表项部件返回约定折算进控件的 oper 与回调 param(收集口径 = 取最后一个非 0 值)
 		static VOID ListCollectRowOper(int64_t qwRow, DWORD dwRow, int64_t& qwOper, uint64_t& qwParam)
 		{
 			if (qwRow == 0)

@@ -3,15 +3,15 @@
 ## 概述
 
 渲染能力接口:一个文件四部分 —— 渲染设施能力表(`RenderApi`, 16 项)+ 控件绘制接口表(`CtrlApi`, 3 项)+
-宿主接口表(`HostApi`, 13 项)+ 样式与状态定义(`StyleDesc` / `WndShowState` / `pfnFrame` / `pfnSegment`),
+宿主接口表(`HostApi`, 16 项)+ 样式与状态定义(`StyleDesc` / `WndShowState` / `pfnFrame` / `pfnSegment`),
 外加窗口状态位常量。
 
 本模块只定义**接口形式**——能力类型(`using` 定义的函数指针类型)、状态位常量、能力表结构体,
-不含任何具体 UI 库的类型、头文件与实现。能力由实现件填表提供, 由宿主在初始化期注入,
-消费件只经本表调用 ⇒ 更换 UI 实现时改为注入另一张表, 消费件零改动。
+不含任何具体 UI 库的类型、头文件与实现。能力由实现方填表提供, 由宿主在初始化期注入,
+调用方只经本表调用 ⇒ 更换 UI 实现时改为注入另一张表, 调用方零改动。
 
 接口形式是"能力类型 + 成员全为该类型的结构体", 不用抽象基类(本工程在无外部库要求时不引入虚函数与
-RTTI)。表中的几何量一律为框架自有语汇(像素坐标 `vec2`), 由实现件换算为目标库的类型;
+RTTI)。表中的几何量一律为框架自有语汇(像素坐标 `vec2`), 由实现方换算为目标库的类型;
 失败口径与框架其余部分一致:静默返回码(`FALSE`), 不弹窗、不打印。
 
 本模块包含以下编程接口:
@@ -724,13 +724,13 @@ struct RenderApi
 ### 注解
 
 **所有权与生命周期**:整表由实现方一次性填好(进程级静态), 消费方只持**只读指针**, 不复制、不改造、
-不释放。因此表的存活期覆盖所有渲染调用; 换实现等于把指针换成另一张表, 消费件零改动。
+不释放。因此表的存活期覆盖所有渲染调用; 换实现等于把指针换成另一张表, 调用方零改动。
 
 **成员顺序即典型使用顺序**:取得窗口 → 开窗 → 开容器 → 定位光标 → 压 ID 命名空间 → 逐控件绘制与
 命中判定 → 弹命名空间 → 关容器 → 关窗口。顺序被打破时命中判定与裁剪会落到错误的层级上。
 
-**几何语汇**:入参一律是框架自有语汇(像素坐标 `vec2`), 由实现件换算成目标 UI 库的类型;
-消费件不接触任何目标库类型, 也不做单位换算。
+**几何语汇**:入参一律是框架自有语汇(像素坐标 `vec2`), 由实现方换算成目标 UI 库的类型;
+调用方不接触任何目标库类型, 也不做单位换算。
 
 **失败口径**:返回 `BOOL` 的能力以 `FALSE` 表示失败, 静默不报错; 无返回值的能力不提供失败回传,
 调用方须按前序返回值(如 `OpenWnd` / `OpenPanel` 的结论)决定是否配对关闭。
@@ -970,14 +970,14 @@ struct StyleDesc
 | 成员 | 说明 |
 | --- | --- |
 | `fWindowRounding` | 窗口圆角(根窗口 = 设计间隔)。 |
-| `fFrameRounding` | 帧类件圆角(设计内边距)。 |
+| `fFrameRounding` | 控件圆角(设计内边距)。 |
 | `fChildRounding` | 内容子窗圆角(同上)。 |
 | `fPopupRounding` | 弹出层圆角(同上)。 |
 | `crWindowBg` | 窗口底。 |
 | `crChildBg` | 内容子窗底。 |
-| `crFrameBg` | 帧类件底(输入框 / 按钮 / 表头)。 |
-| `crFrameBgHovered` | 帧类件底(悬停)。 |
-| `crFrameBgActive` | 帧类件底(激活)。 |
+| `crFrameBg` | 控件底色(输入框 / 按钮 / 表头)。 |
+| `crFrameBgHovered` | 控件底色(悬停)。 |
+| `crFrameBgActive` | 控件底色(激活)。 |
 | `crButton` | 按钮底。 |
 | `crButtonHovered` | 按钮底(悬停)。 |
 | `crButtonActive` | 按钮底(激活)。 |
@@ -1051,6 +1051,9 @@ struct HostApi
 	BOOL    (*GetWndRect)(DWORD index, RECT* prcWnd, RECT* prcClient);
 	VOID    (*GetRenderStats)(DWORD* pdwSegments, DWORD* pdwCmdLists, INT64* pllVtx, INT64* pllIdx);
 	VOID    (*GetResizeStats)(DWORD* pdwCount, DWORD* pdwLastW, DWORD* pdwLastH);
+	VOID    (*SetAppIcon)(VOID* hIcon);
+	VOID*   (*GetNativeDevice)();
+	VOID*   (*GetNativeDeviceContext)();
 };
 ```
 
@@ -1071,6 +1074,9 @@ struct HostApi
 | `GetWndRect(index, prcWnd, prcClient)` | 取窗口矩形与客户区矩形; 窗口未建时返回 `FALSE`。 |
 | `GetRenderStats(...)` | 取绘制量自证计数(段数 / 绘制命令数 / 顶点数 / 索引数)。 |
 | `GetResizeStats(...)` | 取窗口尺寸调整计数与最近一次调整后的客户区尺寸。 |
+| `SetAppIcon(hIcon)` | 登记应用窗口图标(`HICON`; 建窗前调用)。 |
+| `GetNativeDevice()` | 取首个标准窗口的原生图形设备(未就绪时返回 `NULL`; 类型擦除)。 |
+| `GetNativeDeviceContext()` | 取首个标准窗口的原生图形设备上下文(未就绪时返回 `NULL`; 类型擦除)。 |
 
 ### 注解
 

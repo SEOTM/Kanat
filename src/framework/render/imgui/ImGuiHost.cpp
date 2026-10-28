@@ -57,6 +57,7 @@ static DWORD dwResizeLastH = 0;
 static StyleDesc styleDesc{};
 static BOOL bStyleDescSet = FALSE;
 static FLOAT fWndFontSize = 0.0f;
+static HICON sAppIcon = NULL;
 static HostApi HostTable{};
 
 constexpr DWORD DEFAULT_WND_WIDTH = 800;
@@ -134,6 +135,9 @@ CONST HostApi* ImGuiHost::Register()
 	HostTable.GetWndRect = &ImGuiHost::GetWndRect;
 	HostTable.GetRenderStats = &ImGuiHost::GetRenderStats;
 	HostTable.GetResizeStats = &ImGuiHost::GetResizeStats;
+	HostTable.SetAppIcon = &ImGuiHost::SetAppIcon;
+	HostTable.GetNativeDevice = &ImGuiHost::GetNativeDevice;
+	HostTable.GetNativeDeviceContext = &ImGuiHost::GetNativeDeviceContext;
 	return &HostTable;
 }
 
@@ -342,6 +346,27 @@ VOID ImGuiHost::SetFontSize(FLOAT fFontSize)
 	fWndFontSize = fFontSize;
 }
 
+// 函数: SetAppIcon
+// 描述: 登记应用窗口图标(见 .h)
+VOID ImGuiHost::SetAppIcon(VOID* hIcon)
+{
+	sAppIcon = (HICON)hIcon;
+}
+
+// 函数: GetNativeDevice
+// 描述: 取首个标准窗口的 D3D11 设备(见 .h)
+VOID* ImGuiHost::GetNativeDevice()
+{
+	return (VOID*)Units[0].d3d.GetDevice();
+}
+
+// 函数: GetNativeDeviceContext
+// 描述: 取首个标准窗口的 D3D11 设备上下文(见 .h)
+VOID* ImGuiHost::GetNativeDeviceContext()
+{
+	return (VOID*)Units[0].d3d.GetDeviceContext();
+}
+
 // 函数: SetDarkMode
 // 描述: 设置亮暗基础样式(入参归一化为真/假; 已就绪窗口立即刷新)
 VOID ImGuiHost::SetDarkMode(BOOL bDark)
@@ -391,7 +416,7 @@ BOOL ImGuiHost::CreateWnds(CONST WndSpec* pSpecs)
 	}
 	{
 		WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, HostWndProc, 0L, 0L,
-			hInstance, NULL, NULL, NULL, NULL, pSpecs[0].lpszClassName, NULL };
+			hInstance, sAppIcon, NULL, NULL, NULL, pSpecs[0].lpszClassName, sAppIcon };
 		atomSharedClass = RegisterClassEx(&wc);
 		if (atomSharedClass == 0)
 		{
@@ -415,6 +440,11 @@ BOOL ImGuiHost::CreateWnds(CONST WndSpec* pSpecs)
 		if (unit.hWnd == NULL)
 		{
 			goto CREATE_CLN;
+		}
+		if (sAppIcon != NULL)
+		{
+			SendMessageW(unit.hWnd, WM_SETICON, ICON_BIG, (LPARAM)sAppIcon);
+			SendMessageW(unit.hWnd, WM_SETICON, ICON_SMALL, (LPARAM)sAppIcon);
 		}
 		if (unit.dwRounding > 0)
 		{

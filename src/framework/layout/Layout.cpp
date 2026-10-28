@@ -226,7 +226,7 @@ VOID Layout::UnlinkNode(linknode* pNode)
 static constexpr INT32 LAYOUT_LAYER_UNRESOLVED = INT32_MIN;
 
 // 函数: IsShellCtrl
-// 描述: 判定是否为结构件(层次恒 0, 无视 parent 声明)
+// 描述: 判定是否为窗口非客户区控件(层次恒 0, 无视 parent 声明)
 static BOOL IsShellCtrl(CtrlType type)
 {
 	if (type == CTRL_TYPE_WND || type == CTRL_TYPE_TITLE || type == CTRL_TYPE_CNTR)
@@ -237,7 +237,7 @@ static BOOL IsShellCtrl(CtrlType type)
 }
 
 // 函数: InitCtrlLayer
-// 描述: 层次推导的逐枚初值(结构件归 0 / 其余标为未解析)
+// 描述: 层次推导的逐枚初值(窗口非客户区控件归 0 / 其余标为未解析)
 VOID Layout::InitCtrlLayer(CtrlInfo& info)
 {
 	if (IsShellCtrl(info.type) != FALSE)
@@ -680,7 +680,7 @@ CtrlInfo* Layout::GetCtrlInfoByID(int id)
 	return NULL;
 }
 // 函数: GetLayoutBase
-// 描述: 按类型取结构件(只在前三个槽位内查找)
+// 描述: 按类型取窗口非客户区控件(只在前三个槽位内查找)
 CtrlInfo* Layout::GetLayoutBase(CtrlType type)
 {
 	CtrlInfo* ret = nullptr;
@@ -696,7 +696,7 @@ CtrlInfo* Layout::GetLayoutBase(CtrlType type)
 	return ret;
 }
 // 函数: GetShellNum
-// 描述: 统计结构件个数(WND / TITLE / CNTR 中存在者)
+// 描述: 统计窗口非客户区控件个数(WND / TITLE / CNTR 中存在者)
 size_t Layout::GetShellNum()
 {
 	size_t ret = 0;

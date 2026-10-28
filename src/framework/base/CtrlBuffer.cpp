@@ -18,9 +18,25 @@ namespace CtrlBuffer
 			return FALSE;
 		}
 		if (info->IsKnownType() == FALSE ||
-			info->type == CTRL_TYPE_LIST || info->type == CTRL_TYPE_TIMEBAR ||
-			info->type == CTRL_TYPE_LIST_TIMESPAN)
+			info->type == CTRL_TYPE_LIST)
 		{
+			return TRUE;
+		}
+		if (info->type == CTRL_TYPE_LIST_TIMESPAN)
+		{
+			const DWORD cbItem = (DWORD)sizeof(TimeSpanItem);
+			const DWORD dwCapacity = LIST_TIMESPAN_CAPACITY;
+			const DWORD cbBuffer = (DWORD)(sizeof(ListBuffer) + (size_t)cbItem * dwCapacity);
+			info->bufferInfo = AllocatorHub::AllocSmall(cbBuffer);
+			if (info->bufferInfo.buffer == NULL) { return FALSE; }
+			RtlZeroMemory(info->bufferInfo.buffer, info->bufferInfo.size);
+			{
+				ListBuffer* pList = (ListBuffer*)info->bufferInfo.buffer;
+				pList->dwSelected = LIST_SEL_NONE;
+				pList->dwCount = 0;
+				pList->dwCapacity = dwCapacity;
+				pList->cbItem = cbItem;
+			}
 			return TRUE;
 		}
 		if (info->type == CTRL_TYPE_INPUT_ACTION)
@@ -152,6 +168,32 @@ namespace CtrlBuffer
 			slider->vMin = (text && text[0]) ? atoi(text) : 0;
 			slider->lMin = 0;
 			slider->lMax = 100;
+			return TRUE;
+		}
+		case CTRL_TYPE_SLIDER_RANGE:
+		{
+			info->bufferInfo = AllocatorHub::AllocSmall(sizeof(CtrlSliderRangeData));
+			if (info->bufferInfo.buffer == NULL) { return FALSE; }
+			RtlZeroMemory(info->bufferInfo.buffer, info->bufferInfo.size);
+			CtrlSliderRangeData* slider = (CtrlSliderRangeData*)info->bufferInfo.buffer;
+			slider->vMin = 0;
+			slider->vMax = 100;
+			slider->lMin = 0;
+			slider->lMax = 100;
+			return TRUE;
+		}
+		case CTRL_TYPE_TIMEBAR:
+		{
+			info->bufferInfo = AllocatorHub::AllocSmall(sizeof(CtrlTimeBarData));
+			if (info->bufferInfo.buffer == NULL) { return FALSE; }
+			RtlZeroMemory(info->bufferInfo.buffer, info->bufferInfo.size);
+			{
+				CtrlTimeBarData* pBar = (CtrlTimeBarData*)info->bufferInfo.buffer;
+				if (text != NULL && text[0] != '\0')
+				{
+					strcpy_s(pBar->szHint, (size_t)CTRL_LABEL_BUF, text);
+				}
+			}
 			return TRUE;
 		}
 		case CTRL_TYPE_PROG:

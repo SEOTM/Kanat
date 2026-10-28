@@ -144,7 +144,7 @@ namespace Controls
 	}
 
 	// 函数: MakePalette
-	// 描述: 构造部件配色方案(帧类件与列表行件共用的统一入口; 按控件层次与配色样式采样)
+	// 描述: 构造部件配色方案(各绘制件共用的统一入口; 按控件层次与配色样式采样)
 	static Widgets::Base::Palette MakePalette(INT32 nRel, PALETTE_STYLE eStyle)
 	{
 		CONST PaletteStyleDesc& style = PaletteStyleOf(eStyle);
@@ -193,8 +193,8 @@ namespace Controls
 		return palette;
 	}
 
-		// 函数: TitleBar
-		// 描述: 标题控件: 绘制标题文本与右上关闭钮
+	// 函数: TitleBar
+	// 描述: 标题控件: 绘制标题文本与右上关闭钮
 	VOID TitleBar(CtrlInfo* info);
 	// 函数: InputReal
 	// 描述: 实数输入框
@@ -224,8 +224,14 @@ namespace Controls
 	// 描述: 下拉动作控件: 无边框下拉框 + 右侧按钮(绘制经部件 Widgets::Base::ComboAction)
 	VOID ComboAction(CtrlInfo* info);
 	// 函数: TimeBar
-	// 描述: 时间条控件(CTRL_TYPE_TIMEBAR): 显示 起点 - 终点 时码; 数据取控件缓冲
+	// 描述: 可编辑时间条控件(CTRL_TYPE_TIMEBAR): 提示文本 + 时/分/秒/毫秒四段输入, 提交时派发编辑提交码
 	VOID TimeBar(CtrlInfo* info);
+	// 函数: SliderRange
+	// 描述: 双手柄范围滑块控件(SLIDER_RANGE): 左/右手柄分别派发专属段与编辑变更码
+	VOID SliderRange(CtrlInfo* info);
+	// 函数: ListTimeSpan
+	// 描述: 时间片列表控件(LIST_TIMESPAN): 逐行显示起止时码, 行内删除钮与行选中经操作码回传
+	VOID ListTimeSpan(CtrlInfo* info);
 
 	// 函数: ListInput
 	// 描述: 布局列表控件(LIST_INPUT)的绘制入口: 外部一次性送入(单参数), 控件自行拆解任务 ——
@@ -284,7 +290,7 @@ namespace Controls
 		}
 	}
 	// 函数: InputSingle
-	// 描述: 单行输入控件(INPUT_SINGLE): 绘制经部件 Widgets::Base::InputText(底与边框由 ImGui 原生帧绘制,
+	// 描述: 单行输入控件(INPUT_SINGLE): 绘制经部件 Widgets::Base::InputText(底与边框由 ImGui 原生绘制,
 	VOID InputSingle(CtrlInfo* info)
 	{
 		if (info == NULL)
@@ -478,7 +484,7 @@ namespace Controls
 	}
 
 	// 函数: ListRowDropCalc
-	// 描述: 列表行拖拽落点 → 行件返回约定的纯算式(与 ListRowDropOper 同一真源; 常量表达式,
+	// 描述: 列表项拖拽落点 → 列表项部件返回约定的纯算式(与 ListRowDropOper 同一真源; 常量表达式,
 	static constexpr int64_t ListRowDropCalc(DWORD dwSrc, DWORD dwRow, BOOL IsAfter)
 	{
 		CONST DWORD dwDest = (IsAfter != FALSE) ? (dwRow + 1) : dwRow;
@@ -487,7 +493,7 @@ namespace Controls
 			((uint64_t)(dwSrc & 0xFFFF) << 48));
 	}
 	// 函数: ListRowDropOper
-	// 描述: 列表行拖拽落点 → 行件返回约定(纯换算, 不触碰 ImGui; 绘制侧唯一真源)
+	// 描述: 列表项拖拽落点 → 列表项部件返回约定(纯换算, 不触碰 ImGui; 绘制侧唯一真源)
 	int64_t ListRowDropOper(DWORD dwSrc, DWORD dwRow, BOOL IsAfter)
 	{
 		return ListRowDropCalc(dwSrc, dwRow, IsAfter);
@@ -522,6 +528,8 @@ namespace Controls
 		{ CTRL_TYPE_COMBO,			Combo },
 		{ CTRL_TYPE_COMBO_ACTION,	ComboAction },
 		{ CTRL_TYPE_TIMEBAR,		TimeBar },
+		{ CTRL_TYPE_SLIDER_RANGE,	SliderRange },
+		{ CTRL_TYPE_LIST_TIMESPAN,	ListTimeSpan },
 		{ CTRL_TYPE_RECT,			Rect },
 		{ CTRL_TYPE_TITLE,			TitleBar },
 		{ CTRL_TYPE_LIST_INPUT,		ListInput },
@@ -631,8 +639,7 @@ namespace Controls
 		static HWND hDragWnd = NULL;
 		static vec2 ptGrab(0.0f, 0.0f);
 
-		CHAR* lpText = CtrlTextBuffer(info);
-		LPCSTR label = (lpText != NULL) ? lpText : "";
+		// 计算控件尺寸
 		ImVec2 size = toImvec2(info->size);
 		ImVec2 pos = toImvec2(info->position);
 		CONST Widgets::Base::PaintWay wayTitle = Widgets::Base::MakePaletteWay(MakePalette(CtrlRel(info) - 1, PALETTE_FLAT));
@@ -641,8 +648,26 @@ namespace Controls
 		FLOAT padding = sizeinfo.padding;
 		uint16_t wCommon = OPER_COMMON_NONE;
 		uint16_t wOwn = 0;
-		ImGui::GetWindowDrawList()->AddRectFilled(pos, pos + size,
-			Widgets::Base::StateColorU32(wayTitle.palette.crBackground, Widgets::Base::WIDGET_STATE_BASE));
+
+		CHAR* lpText = CtrlTextBuffer(info);
+		LPCSTR label = (lpText != NULL) ? lpText : "";
+
+		// 获取真实坐标
+		ImGui::SetCursorPos(pos);
+		ImVec2 position = ImGui::GetCursorScreenPos();
+
+		// 获取绘制列表
+		ImDrawList* drawlist = ImGui::GetWindowDrawList();
+
+		drawlist->AddRectFilled(position + ImVec2(1, 1), position + size - ImVec2(1, 0), wayTitle.palette.crBackground.crBase, sizeinfo.space + 1, ImDrawFlags_RoundCornersTop);
+		// drawlist->AddRectFilled(position + ImVec2(1,1), position + size, 0xFF0000FF, sizeinfo.space + 1, ImDrawFlags_RoundCornersTop);
+
+		// 此时会破坏原边框，所以补画
+		//drawlist->AddRect(position, position + size, 0xFF00FF00, sizeinfo.space, 1.0, ImDrawFlags_RoundCornersTop);
+		//drawlist->AddRect(position, position + size, 0xFFFF0000, sizeinfo.space + 2, 1.0, ImDrawFlags_RoundCornersTop);
+
+		// 绘制控件
+
 		ImGui::InvisibleButton(label, size - ImVec2{ size.y * exitwidth, 0 });
 		if (ImGui::IsItemActive())    wCommon |= OPER_COMMON_HOLD;
 		if (ImGui::IsItemActivated()) wCommon |= OPER_COMMON_ACTIVE;
@@ -653,7 +678,7 @@ namespace Controls
 		}
 		Widgets::Base::Text(info->id, ImVec2(pos.x + sizeinfo.space, pos.y),
 			ImVec2(size.x - sizeinfo.space, size.y), wayTitle, label);
-		if (Widgets::Base::ExitSign(info->id, { size.x - size.y * exitwidth, 0 }, { size.y * exitwidth, size.y },
+		if (Widgets::Base::ExitSign(info->id, position + ImVec2{ size.x - size.y * exitwidth, 0 }, { size.y * exitwidth, size.y },
 			wayExit, u8"##TITLEBAR_EXIT", padding, 1.0f))
 		{
 			wOwn = OPER_STRUCT_TITLE_CLOSE;
@@ -928,23 +953,198 @@ namespace Controls
 	}
 
 	// 函数: TimeBar
-	// 描述: 时间条控件(CTRL_TYPE_TIMEBAR): 从控件缓冲读 起点/终点(两枚 int64, 毫秒), 调
+	// 描述: 可编辑时间条控件(CTRL_TYPE_TIMEBAR): 取控件缓冲的提示文本与毫秒值, 绘制时码四段输入;
+	//       提交时派发专属段编辑提交码(缓冲已由部件按上限钳制并写回)
 	VOID TimeBar(CtrlInfo* info)
 	{
 		if (info == NULL)
 		{
 			return;
 		}
-		int64_t nStartMs = 0;
-		int64_t nEndMs = 0;
-		if (info->bufferInfo.buffer != NULL && info->bufferInfo.size >= sizeof(int64_t) * 2)
+		if (info->bufferInfo.buffer == NULL || info->bufferInfo.size < sizeof(CtrlTimeBarData))
 		{
-			const int64_t* pSpan = (const int64_t*)info->bufferInfo.buffer;
-			nStartMs = pSpan[0];
-			nEndMs = pSpan[1];
+			ImGui::SetCursorPos(toImvec2(info->position));
+			ImGui::Dummy(toImvec2(info->size));
+			return;
 		}
-		Widgets::Base::TimeSpan(info->id, toImvec2(info->position), toImvec2(info->size),
-			Widgets::Base::MakePaletteWay(MakePalette(CtrlRel(info), PALETTE_FLAT)), nStartMs, nEndMs, 0);
+		CtrlTimeBarData* pData = (CtrlTimeBarData*)info->bufferInfo.buffer;
+		const int64_t qwPart = Widgets::Base::TimeBar(info->id, toImvec2(info->position), toImvec2(info->size),
+			Widgets::Base::MakePaletteWay(MakePalette(CtrlRel(info), PALETTE_SUNKEN)),
+			pData->szHint, pData->valueMs, pData->limitMs);
+		if (qwPart != 0 && info->pEventHandler != NULL)
+		{
+			CONST uint16_t wOwn = (uint16_t)((uint64_t)qwPart & 0xFFFF);
+			CONST uint16_t wCommon = (uint16_t)(((uint64_t)qwPart >> 16) & 0xFFFF);
+			info->pEventHandler(info,
+				OperCode::MakeCode(OperCode::MakeCommon(wCommon, OPER_PAYLOAD_NONE), wOwn, 0),
+				0, info->bufferInfo.buffer);
+		}
+	}
+
+	// 函数: FormatTimeSpanText
+	// 描述: 把起止毫秒格式化为时码文本(时:分:秒.毫秒 - 时:分:秒.毫秒)
+	static VOID FormatTimeSpanText(int64_t nStartMs, int64_t nEndMs, LPSTR lpText, size_t cbText)
+	{
+		if (lpText == NULL || cbText == 0)
+		{
+			return;
+		}
+		if (nStartMs < 0) { nStartMs = 0; }
+		if (nEndMs < 0) { nEndMs = 0; }
+		CONST int64_t h1 = nStartMs / 3600000;
+		CONST int64_t m1 = (nStartMs / 60000) % 60;
+		CONST int64_t s1 = (nStartMs / 1000) % 60;
+		CONST int64_t ms1 = nStartMs % 1000;
+		CONST int64_t h2 = nEndMs / 3600000;
+		CONST int64_t m2 = (nEndMs / 60000) % 60;
+		CONST int64_t s2 = (nEndMs / 1000) % 60;
+		CONST int64_t ms2 = nEndMs % 1000;
+		sprintf_s(lpText, cbText, u8"%02lld:%02lld:%02lld.%03lld - %02lld:%02lld:%02lld.%03lld",
+			(long long)h1, (long long)m1, (long long)s1, (long long)ms1,
+			(long long)h2, (long long)m2, (long long)s2, (long long)ms2);
+	}
+
+	// 函数: SliderRange
+	// 描述: 双手柄范围滑块控件(SLIDER_RANGE): 左/右手柄分别派发专属段与编辑变更码
+	VOID SliderRange(CtrlInfo* info)
+	{
+		if (info == NULL)
+		{
+			return;
+		}
+		if (info->bufferInfo.buffer == NULL || info->bufferInfo.size < sizeof(CtrlSliderRangeData))
+		{
+			ImGui::SetCursorPos(toImvec2(info->position));
+			ImGui::Dummy(toImvec2(info->size));
+			return;
+		}
+		CtrlSliderRangeData* pData = (CtrlSliderRangeData*)info->bufferInfo.buffer;
+		int64_t qwPart = Widgets::Base::RangeSlider(info->id, toImvec2(info->position), toImvec2(info->size),
+			Widgets::Base::MakePaletteWay(MakePalette(CtrlRel(info), PALETTE_FLAT)),
+			pData->vMin, pData->vMax, pData->lMin, pData->lMax);
+		if (qwPart != 0 && info->pEventHandler != NULL)
+		{
+			CONST uint16_t wOwn = (uint16_t)((uint64_t)qwPart & 0xFFFF);
+			CONST uint16_t wCommon = (uint16_t)(((uint64_t)qwPart >> 16) & 0xFFFF);
+			info->pEventHandler(info,
+				OperCode::MakeCode(OperCode::MakeCommon(wCommon, OPER_PAYLOAD_NONE), wOwn, 0),
+				0, info->bufferInfo.buffer);
+		}
+	}
+
+	// 函数: TimeSpanRow
+	// 描述: 时间片列表项部件: 行点击区 + 时码文本 + 行尾删除钮(返回列表项部件操作约定)
+	static int64_t TimeSpanRow(int nRowId, vec2 pos, vec2 size, CONST Widgets::Base::PaintWay& way, VOID* lpItem)
+	{
+		using namespace Widgets::Base;
+
+		int64_t qwOper = 0;
+		TimeSpanItem* pItem = (TimeSpanItem*)lpItem;
+		if (pItem)
+		{
+			// 准备文本
+			CHAR szText[96]{}, szDelete[4] = { '-' };
+			FormatTimeSpanText(pItem->startMs, pItem->endMs, szText, sizeof(szText));
+			qwOper = TextAction(nRowId, toImvec2(pos), toImvec2(size), way, size.y, szText, szDelete);
+		}
+
+		return qwOper;
+	}
+
+	// 函数: ListTimeSpan
+	// 描述: 时间片列表控件(LIST_TIMESPAN): 逐行显示起止时码, 行内删除钮与行选中经操作码回传
+	VOID ListTimeSpan(CtrlInfo* info)
+	{
+		int64_t qwOper = 0;
+		uint64_t qwParam = 0;
+		if (info == NULL)
+		{
+			return;
+		}
+		if (info->bufferInfo.buffer == NULL || info->bufferInfo.size < sizeof(ListBuffer))
+		{
+			ImGui::SetCursorPos(toImvec2(info->position));
+			ImGui::Dummy(toImvec2(info->size));
+			return;
+		}
+		ListBuffer* pList = (ListBuffer*)info->bufferInfo.buffer;
+		DWORD dwCount = (pList->dwCount <= pList->dwCapacity) ? pList->dwCount : pList->dwCapacity;
+		size_t cbItem = (pList->cbItem >= sizeof(TimeSpanItem)) ? (size_t)pList->cbItem : sizeof(TimeSpanItem);
+		CONST FLOAT fInner = sizeinfo.padding;
+		CONST FLOAT fRowH = sizeinfo.controlHeight;
+		CONST FLOAT fStep = fRowH;
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, fRounding);
+		ImGui::SetCursorPos(toImvec2(info->position));
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, ProjColor(CtrlLayerOf(CtrlRel(info))));
+		ImGui::BeginChild(info->label ? info->label : u8"##TIMESPANLIST", toImvec2(info->size), true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::PopStyleColor();
+		DWORD dwVisible = (DWORD)((info->size.y - fInner) / fStep);
+		if (dwVisible < 1) { dwVisible = 1; }
+		if (dwCount > 0 && pList->dwTop >= dwCount)
+		{
+			pList->dwTop = dwCount - 1;
+		}
+		if (dwCount > dwVisible && pList->dwTop + dwVisible > dwCount)
+		{
+			pList->dwTop = dwCount - dwVisible;
+		}
+		if (pList->dwTop > dwCount)
+		{
+			pList->dwTop = 0;
+		}
+		if (ImGui::IsWindowHovered())
+		{
+			FLOAT fWheel = ImGui::GetIO().MouseWheel;
+			if (fWheel < 0.0f && pList->dwTop + dwVisible < dwCount)
+			{
+				pList->dwTop++;
+			}
+			else if (fWheel > 0.0f && pList->dwTop > 0)
+			{
+				pList->dwTop--;
+			}
+		}
+		CONST Widgets::Base::PaintWay way = Widgets::Base::MakePaletteWay(MakePalette(CtrlRel(info), PALETTE_RAISED));
+		FLOAT fW = ImGui::GetWindowWidth() - fInner * 2.0f;
+
+		if (fW < 1.0f) { fW = 1.0f; }
+		for (DWORD i = 0; i < dwVisible && (pList->dwTop + i) < dwCount; i++)
+		{
+			DWORD dwRow = pList->dwTop + i;
+			VOID* lpItem = (VOID*)((BYTE*)(pList + 1) + cbItem * (size_t)dwRow);
+			CONST vec2 posRow(fInner, fInner + (fInner + fStep) * (FLOAT)i);
+			if (dwRow == pList->dwSelected)
+			{
+				ImGui::SetCursorPos(toImvec2(posRow));
+				CONST ImVec2 o = ImGui::GetCursorScreenPos();
+				ImGui::GetWindowDrawList()->AddRectFilled(o, ImVec2(o.x + fW, o.y + fRowH),
+					ImGui::GetColorU32(ImGuiCol_Header), fRounding * 0.5f);
+			}
+			int64_t qwRow = TimeSpanRow((int)dwRow, posRow, vec2(fW, fRowH), way, lpItem);
+			if (qwRow != 0)
+			{
+				ListCollectRowOper(qwRow, dwRow, qwOper, qwParam);
+			}
+		}
+		ImGui::EndChild();
+		ImGui::PopStyleVar();
+		if (qwOper != 0)
+		{
+			CONST uint32_t dwRowOper = (uint32_t)(OperCode::GetSegment((uint64_t)qwOper,
+				OperCode::OPER_SEG_PAYLOAD) & 0xFFFF);
+			if (dwRowOper == OPER_LIST_ROW_ACTIVATED)
+			{
+				pList->dwSelected = (DWORD)qwParam;
+				qwOper = (int64_t)OperCode::MakeCode(
+					OperCode::MakeCommon(OPER_COMMON_NONE, OPER_PAYLOAD_OPCODE),
+					0, OPER_LIST_ROW_SELECTION_CHANGED);
+				qwParam = 0;
+			}
+			if (info->pEventHandler != NULL)
+			{
+				info->pEventHandler(info, (uint64_t)qwOper, qwParam, info->bufferInfo.buffer);
+			}
+		}
 	}
 
 	// 函数: ComboAction
@@ -1078,7 +1278,7 @@ static ListBuffer* ListBufferOf(CtrlInfo* info)
 }
 
 // 函数: ListCollectRowOper
-// 描述: 把"本行行件返回约定"折算进控件的"oper + 回调 param"(ListInput/ListCombo/Command::List
+// 描述: 把"本列表项部件返回约定"折算进控件的"oper + 回调 param"(ListInput/ListCombo/Command::List
 static VOID ListCollectRowOper(int64_t qwRow, DWORD dwRow, int64_t& qwOper, uint64_t& qwParam)
 {
 	if (qwRow == 0)

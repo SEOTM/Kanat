@@ -89,6 +89,35 @@ struct CtrlSliderData
 	int64_t lMax;
 };
 
+constexpr DWORD LIST_TIMESPAN_CAPACITY = 128;
+
+// 结构: TimeSpanItem
+// 描述: 时间片列表的一行(起止毫秒)
+struct TimeSpanItem
+{
+	int64_t startMs;
+	int64_t endMs;
+};
+
+// 结构: CtrlTimeBarData
+// 描述: 可编辑时间条的缓冲(提示文本 + 当前毫秒 + 上限毫秒; 时码四段由控件按值拆分)
+struct CtrlTimeBarData
+{
+	CHAR szHint[CTRL_LABEL_BUF];	// 提示文本(装配期由布局文本复制)
+	int64_t valueMs;				// 当前时间(毫秒)
+	int64_t limitMs;				// 上限(毫秒; 不大于 0 表示不限)
+};
+
+// 结构: CtrlSliderRangeData
+// 描述: 双手柄范围滑块的缓冲(当前区间与值域)
+struct CtrlSliderRangeData
+{
+	int64_t vMin;
+	int64_t vMax;
+	int64_t lMin;
+	int64_t lMax;
+};
+
 struct CtrlTextRange
 {
 	CHAR* lpText;
@@ -156,7 +185,7 @@ namespace CtrlBuffer
 	BOOL PrepareCtrlBuffer(CtrlInfo* info, LPCSTR text);
 
 	// 函数: WriteCtrlTextToBuffer
-	// 描述: 把中间态文本按控件缓冲容量写回该控件(结构件"外观信息"刷新用; 无文本缓冲者安全忽略)
+	// 描述: 把中间态文本按控件缓冲容量写回该控件(窗口非客户区控件"外观信息"刷新用; 无文本缓冲者安全忽略)
 	VOID WriteCtrlTextToBuffer(CtrlInfo* pCtrl, LPCSTR text);
 
 	// 函数: FreeCtrlBuffer

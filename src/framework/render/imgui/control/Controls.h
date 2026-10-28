@@ -63,10 +63,10 @@ namespace Controls
 	// 描述: 下拉动作控件(COMBO_ACTION): 无边框下拉框 + 右侧按钮; 选项表与选中索引取控件缓冲
 	VOID ComboAction(CtrlInfo* info);
 	// 函数: TimeBar
-	// 描述: 时间条控件(TIMEBAR): 显示 起点 - 终点 的时码(时:分:秒.毫秒); 数据取控件缓冲
+	// 描述: 可编辑时间条控件(TIMEBAR): 提示文本 + 时:分:秒.毫秒四段数字输入; 数据取控件缓冲
 	VOID TimeBar(CtrlInfo* info);
 	// 函数: ListRowDropOper
-	// 描述: 列表行拖拽落点 → 行件返回约定(纯换算, 不触碰 ImGui; 绘制侧唯一真源)
+	// 描述: 列表项拖拽落点 → 列表项部件返回约定(纯换算, 不触碰 ImGui; 绘制侧唯一真源)
 	int64_t ListRowDropOper(DWORD dwSrc, DWORD dwRow, BOOL IsAfter);
 
 	// 函数: ListInput

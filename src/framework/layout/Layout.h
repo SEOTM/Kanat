@@ -43,7 +43,7 @@ private:
 	// 描述: 把节点从链上摘下(双向链 O(1); 只改链接, 不动节点内存)
 	VOID UnlinkNode(linknode* pNode);
 	// 函数: InitCtrlLayer
-	// 描述: 层次推导的逐枚初值(结构件归 0 / 其余标为未解析)
+	// 描述: 层次推导的逐枚初值(窗口非客户区控件归 0 / 其余标为未解析)
 	VOID InitCtrlLayer(CtrlInfo& info);
 	// 函数: SettleCtrlLayer
 	// 描述: 为单枚未解析控件定层次(父已定或无父即定值; 父未解析则等下一趟)
@@ -86,10 +86,10 @@ public:
 	// 描述: 按控件 ID 取可写控件指针(链序首个命中; 未找到返回 NULL)
 	CtrlInfo* GetCtrlInfoByID(int id);
 	// 函数: GetLayoutBase
-	// 描述: 按类型取结构件(只在前三个槽位内查找)
+	// 描述: 按类型取窗口非客户区控件(只在前三个槽位内查找)
 	CtrlInfo* GetLayoutBase(CtrlType type);
 	// 函数: GetShellNum
-	// 描述: 统计结构件个数(WND / TITLE / CNTR 中存在者)
+	// 描述: 统计窗口非客户区控件个数(WND / TITLE / CNTR 中存在者)
 	size_t GetShellNum();
 	// 函数: GetTotalNum
 	// 描述: 取控件总数

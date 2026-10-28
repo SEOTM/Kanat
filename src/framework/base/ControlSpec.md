@@ -78,7 +78,7 @@
 | `OPER_EDIT_*` | `0x0001` / `0x0002` / `0x0003` | 编辑族专属码(提交 / 变更 / 取消)。 |
 | `OPER_CUSTOM_*` | `0x0001` / `0x0002` | 自定义组合部件的专属码(子空间按控件)。 |
 | `OPER_LIST_*` | `0x0001` … `0x0007` | 列表族专属码(行事件 / 新增 / 滚动)。 |
-| `OPER_STRUCT_TITLE_CLOSE` | `0x0001` | 结构件族:关闭钮被点击。 |
+| `OPER_STRUCT_TITLE_CLOSE` | `0x0001` | 窗口非客户区控件族:关闭钮被点击。 |
 | `OPER_PROG_UPDATED` 等类型单列码 | `0x0001` / `0x0002` | 上述分类覆盖不到时按类型单列的专属码。 |
 | `LIST_*` | `0xFFFFFFFF` / `0` / `1` | 列表选中哨兵与特殊行位置标志。 |
 
@@ -100,7 +100,7 @@ inline INT32 CtrlLayerOf(INT32 nLayer);
 
 类型: **INT32**
 
-控件层次(即 `CtrlInfo::nLayer`),有符号:0 = 窗口底那一档,负 = 更沉,正 = 更亮。结构件恒 `0`。
+控件层次(即 `CtrlInfo::nLayer`),有符号:0 = 窗口底那一档,负 = 更沉,正 = 更亮。窗口非客户区控件恒 `0`。
 任意整数都合法 —— 越出层号域时由本函数钳制。
 
 ### 返回值
@@ -158,7 +158,7 @@ inline INT32 CtrlLayerStep(CtrlType type);
 | --- | --- | --- |
 | 域 / 承载面 | `-1` | `RECT`、`INPUT_*`、`LIST_*`、`COMBO` / `COMBO_ACTION`、`RENDER`、`SLIDER` |
 | 件 / 操作物 | `+1` | `BUTTON`、`CHECKBOX` |
-| 其余 | `0` | 结构件(`WND` / `TITLE` / `CNTR`)、`TEXT`、`TIMEBAR`、`PROG`、`UNKNOWN`、`INVALID` |
+| 其余 | `0` | 窗口非客户区控件(`WND` / `TITLE` / `CNTR`)、`TEXT`、`TIMEBAR`、`PROG`、`UNKNOWN`、`INVALID` |
 
 语义是"每层递进方向"而非"相对固定基准的一次性调整" —— 嵌套几层就累进几档,由递推自然给出,不需要另定
 累加规则。
@@ -365,8 +365,10 @@ inline BOOL CtrlTypeHandlesClickItself(CtrlType type);
 ### 注解
 
 控件库只有三处派发"点击":①按钮(完整单击口径);②绑定了事件的文本 / 矩形(补一枚覆盖控件矩形的无绘制
-可交互项,完整单击口径);③标题栏(结构件,不参与预览布局的内容控件判定)。其余类型只在各自的
-"提交 / 变更 / 电平"等语义时派发操作码,点击本身不派发。
+可交互项,完整单击口径);③标题栏(窗口非客户区控件,不参与预览布局的内容控件判定)。另有几类**自带可交互输入项**的
+控件(可编辑时间条 / 时间片列表 / 双手柄滑动条)由控件库独占其输入项的点击,只按各自语义派发提交码或
+变更码 —— 它们同样登记在本判据里,以免渲染出口把同一次点击再按 `OPER_COMMON_CLICKED` 派发一遍;
+其余类型只在各自的"提交 / 变更 / 电平"等语义时派发操作码,点击本身不派发。
 
 `TRUE` 的类型若被渲染出口再判一次,同一次点击会被登记两次。
 
@@ -528,7 +530,7 @@ constexpr uint64_t MakeCode(uint16_t common, uint16_t own, uint32_t payload);
 ### 注解
 
 **三段 = "谁在说话"**:公共段 = 任何一方合意即可用的通用结论(各位含义全库一致);专属段 = **当前回调的
-发出者**(当前控件自己)的结论;搭载段 = **被携带的下属**(子部件 / 行件 / 管道内件)的码或数据。
+发出者**(当前控件自己)的结论;搭载段 = **被携带的下属**(子部件 / 列表项部件 / 管道内件)的码或数据。
 
 **点对点约定,不是消息总线**:控件 →(`event` 名)→ 绑定表 → 处理函数 是一对一约定 ⇒ 操作码的读者唯一
 且已知,不需要运行期"类型 → 命名空间"查表,也不需要 `(类型, 码)` 双键分派表。
@@ -808,7 +810,7 @@ inline vec2 UnpackWndPos(uint64_t param);
 与 `PackWndPos` 完全互逆,**但只对像素整数坐标成立**:打包时小数部分已被截断,回读得到的是整数值
 (控件位置的像素口径本就是整数,不构成精度损失)。
 
-非 `PackWndPos` 打包的 `param`(如列表行的源行号、行件搭载数据)不要喂给本函数。
+非 `PackWndPos` 打包的 `param`(如列表行的源行号、列表项部件搭载数据)不要喂给本函数。
 
 ---
 
@@ -825,6 +827,7 @@ enum CtrlType
     CTRL_TYPE_INVALID = 0,
     ...
     CTRL_TYPE_LIST_TIMESPAN = 23,
+    CTRL_TYPE_SLIDER_RANGE = 24,
     CTRL_TYPE_COUNT
 };
 ```
@@ -849,20 +852,25 @@ enum CtrlType
 | `CTRL_TYPE_LIST` | `13` | 列表(无缓冲语义、无绘制实现 ⇒ 有控件、无像素)。 |
 | `CTRL_TYPE_LIST_INPUT` | `14` | 布局列表:行 = 可编辑输入动作行。 |
 | `CTRL_TYPE_LIST_COMBO` | `15` | 控件列表:项目行只读,特殊行 = 下拉动作。 |
-| `CTRL_TYPE_TIMEBAR` | `16` | 时间条:无缓冲语义,缓冲缺失时按 `0` 值绘制。 |
+| `CTRL_TYPE_TIMEBAR` | `16` | 可编辑时间条(提示文本 + 时 / 分 / 秒 / 毫秒四段输入),缓冲为 `CtrlTimeBarData`。 |
 | `CTRL_TYPE_RENDER` | `17` | 渲染面:纹理由宿主注入,无图时画占位面。 |
 | `CTRL_TYPE_SLIDER` | `18` | 单手柄滑动条(一个值 + 一个值域)。 |
 | `CTRL_TYPE_COMBO` | `19` | 下拉框。 |
 | `CTRL_TYPE_COMBO_ACTION` | `20` | 下拉动作:左段下拉 + 右段按钮(复合控件)。 |
 | `CTRL_TYPE_PROG` | `21` | 进度状态显示。 |
 | `CTRL_TYPE_CHECKBOX` | `22` | 复选框(原生复选框 + 内联显示文字)。 |
-| `CTRL_TYPE_LIST_TIMESPAN` | `23` | 列表型时间跨度:已登记但既无缓冲语义也无绘制实现 ⇒ 有控件、无像素。 |
-| `CTRL_TYPE_COUNT` | `24` | 类型总数,**枚举哨兵,不是合法类型**。 |
+| `CTRL_TYPE_LIST_TIMESPAN` | `23` | 时间片列表:行块为 `TimeSpanItem`,行显示 / 删除 / 选中 / 滚轮。 |
+| `CTRL_TYPE_SLIDER_RANGE` | `24` | 双手柄范围滑动条(区间 + 值域,左右手柄分别回传)。 |
+| `CTRL_TYPE_COUNT` | `25` | 类型总数,**枚举哨兵,不是合法类型**。 |
 
 ### 注解
 
 取值由 `CTRL_TYPE_TABLE` 的**行序**决定;新增类型一律**追加在表尾**(`LIST_TIMESPAN` 之前也行,只要追加)
 ⇒ 既有枚举值不变,已保存文档的类型串仍解析到同一枚举。
+
+2026-10-24 撤销 `CTRL_TYPE_TIMEBAR_EDIT`(并入 `CTRL_TYPE_TIMEBAR`)属删项 ⇒ 其后枚举值顺移一位
+(`SLIDER_RANGE` 25 → 24,`COUNT` 26 → 25)。布局文档只存类型串、不存枚举值,因此文档不受影响;
+按枚举值落盘的外部数据(本项目无)需同步。
 
 `CTRL_TYPE_INVALID` 与 `CTRL_TYPE_UNKNOWN` 是两种语义完全不同的非法值,不得混用(见概述的语义边界)。
 
@@ -1019,10 +1027,10 @@ struct CtrlInfo
 | 成员 | 说明 |
 | --- | --- |
 | `bufferInfo` | 控件数据缓冲(首址 + 请求字节数);`buffer` 为空 = 无缓冲。归控件库分配与回收。 |
-| `nLayer` | 控件层次(有符号相对量:0 = 窗口底那档,负 = 更沉,正 = 更亮);由布局按 `parentID` 链递推(父层 + 自身类型步进),结构件恒 `0`。 |
+| `nLayer` | 控件层次(有符号相对量:0 = 窗口底那档,负 = 更沉,正 = 更亮);由布局按 `parentID` 链递推(父层 + 自身类型步进),窗口非客户区控件恒 `0`。 |
 | `pEventHandler` | 控件的事件处理函数指针;语义随类型(按钮 = 点击 / 输入 = 提交 / 标题栏 = 标题状态 / 列表类 = 渲染该列表时按帧调用以填充内容);事件声明为 `CTRL_EVENT_ENTRUST_PARENT` 时改为父容器(按 `parentID` 上溯)的处理函数。 |
 | `size` | 控件大小(像素),由解析期几何解算得出。 |
-| `position` | 控件位置(像素,有效坐标 = 窗口本地坐标):内容控件 = 声明坐标 + 父链累计偏移(由 `Layout::DeriveCtrlPositions` 落地);结构件不自带累加 —— `WND` 为桌面位置,`TITLE` / `CNTR` 为窗口本地坐标。 |
+| `position` | 控件位置(像素,有效坐标 = 窗口本地坐标):内容控件 = 声明坐标 + 父链累计偏移(由 `Layout::DeriveCtrlPositions` 落地);窗口非客户区控件不自带累加 —— `WND` 为桌面位置,`TITLE` / `CNTR` 为窗口本地坐标。 |
 | `posDeclared` | 声明坐标(像素,父控件坐标系内的坐标):几何解算写入,父链累加的输入;一经解算不再改写,故有效坐标可反复重推。 |
 | `label` | 控件标签(C 串);指向中间态池内的定长字段,控件不复制、不释放。 |
 | `type` | 控件类型:装载期由文档类型串经 `GetTypeEnum` 解析,未命中即 `CTRL_TYPE_UNKNOWN`。 |
@@ -1164,14 +1172,15 @@ struct ListBuffer
 #define CTRL_TYPE_TABLE(ENTRY)                 \
     ENTRY(CTRL_TYPE_INVALID,       "CTRL_TYPE_INVALID")       \
     ...                                        \
-    ENTRY(CTRL_TYPE_LIST_TIMESPAN, "CTRL_TYPE_LIST_TIMESPAN")
+    ENTRY(CTRL_TYPE_LIST_TIMESPAN, "CTRL_TYPE_LIST_TIMESPAN")   \
+    ENTRY(CTRL_TYPE_SLIDER_RANGE,  "CTRL_TYPE_SLIDER_RANGE")
 
 inline constexpr LPCSTR CtrlTypeNames[] = { /* 由同一张表展开 */ };
 ```
 
 ### 值
 
-编译期展开:表共 **24 行** = 22 个可用类型 + `UNKNOWN` + `INVALID`,每行形态
+编译期展开:表共 **25 行** = 23 个可用类型 + `UNKNOWN` + `INVALID`,每行形态
 `ENTRY(枚举名, 字符串名)`。
 
 ### 注解
@@ -1318,7 +1327,7 @@ constexpr uint16_t OPER_PAYLOAD_MIXED  = 3;
 | 模式 | 布局 | 用途 |
 | --- | --- | --- |
 | 未搭载 | 恒 0 | —— |
-| 携带操作码 | 低 16 = 从属部件专属码;高 16 = 附加(保留) | 管道 / 命令部件把行件结论带回控件层 |
+| 携带操作码 | 低 16 = 从属部件专属码;高 16 = 附加(保留) | 管道 / 命令部件把列表项部件结论带回控件层 |
 | 携带数据 | 32 位整块按约定解释 | `param` 已被占用 / 数据需随码跨层 |
 | 码 + 数据混合 | 低 16 = 码,高 16 = 数据 | 保留 |
 
@@ -1326,7 +1335,7 @@ constexpr uint16_t OPER_PAYLOAD_MIXED  = 3;
 
 | 发出者 | 专属段段内值 | 模式 | 布局 |
 | --- | --- | --- | --- |
-| 列表控件(行件结论被携带) | 空(专属段留 0) | 携带操作码 | 低 16 = 行内件码 |
+| 列表控件(列表项部件结论被携带) | 空(专属段留 0) | 携带操作码 | 低 16 = 行内件码 |
 | 列表控件(行被拖拽重排) | `OPER_LIST_ROW_MOVED` | 携带数据 | 32 位 = 目标插入位置(源行号走 `param`) |
 
 **与 `param` 的分工**:`param` = 终端业务数据通道(行号、槽位号、新值等,默认优先);搭载段 = 让操作码
@@ -1446,7 +1455,7 @@ constexpr uint16_t OPER_CUSTOM_CA_BTN_CLICKED   = 0x0002;
 **子空间按控件**:`IA`(输入动作)与 `CA`(下拉动作)是两个独立子空间 ⇒ 同一数值 `0x0001` 在两个子空间
 里含义不同,这是合法的重码,与 `OPER_EDIT_*` 的 `0x0001` 也不冲突。
 
-这两类控件的部件结论"独立使用"(控件自身即该件)⇒ 结论落**专属段**;若同一个件被当行件携带进列表,
+这两类控件的部件结论"独立使用"(控件自身即该件)⇒ 结论落**专属段**;若同一个件被当列表项部件携带进列表,
 其结论则落搭载段(见 `OPER_PAYLOAD_*` 的布局登记)。"落哪一段"由调用方按使用情景决定,部件只报自己的结论。
 
 ---
@@ -1485,7 +1494,7 @@ constexpr uint16_t OPER_LIST_SCROLLED              = 0x0007;
 `param` = 行号;只有"行被重排"这一由列表自己得出的结论才落专属段,并把目标插入位置放进搭载段
 (搭载标志 = 数据)、源行号放进 `param`。
 
-**重排折算**:绘制侧先用 `Controls.h` 的 `ListRowDropOper` 得到行件返回约定,再折算成上述三段;
+**重排折算**:绘制侧先用 `Controls.h` 的 `ListRowDropOper` 得到列表项部件返回约定,再折算成上述三段;
 落点只由"放置目标行 + 鼠标落在上半 / 下半"决定,与源行号无关。
 
 **应用业务意图码不进本系统**:选中 / 新增 / 删除 / 改名 / 改类型 / 移动等**应用意图**留在应用侧
@@ -1495,7 +1504,7 @@ constexpr uint16_t OPER_LIST_SCROLLED              = 0x0007;
 
 ## OPER_STRUCT_TITLE_CLOSE 常量 (ControlSpec)
 
-结构件族专属码:关闭钮被点击。
+窗口非客户区控件族专属码:关闭钮被点击。
 
 ### 语法
 
@@ -1505,7 +1514,7 @@ constexpr uint16_t OPER_STRUCT_TITLE_CLOSE = 0x0001;
 
 ### 值
 
-`0x0001`(结构件族的第一个专属码)。
+`0x0001`(窗口非客户区控件族的第一个专属码)。
 
 ### 注解
 
